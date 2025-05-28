@@ -1,7 +1,11 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Next.js 15の新しい設定名
+  serverExternalPackages: ['leaflet'],
+  // 静的アセットの最適化
+  images: {
+    unoptimized: true
+  }
+}
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
+module.exports = nextConfig

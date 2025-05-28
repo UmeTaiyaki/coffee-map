@@ -202,7 +202,7 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
       const { data, error } = await supabase
         .from('shops')
         .insert([shopData])
-        .select()
+        .select('id, name, address, description, latitude, longitude')
       
       if (error) {
         console.error('Database error:', error)
