@@ -553,16 +553,26 @@ export default function Map({ refreshTrigger }: MapProps) {
 
       {/* 簡易レビューモーダル */}
       {reviewModalShop && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            zIndex: 1000,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}
+          onClick={() => setReviewModalShop(null)}
+        >
+          <div 
+            className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-800">📝 {reviewModalShop.name}</h2>
                 <button
                   onClick={() => setReviewModalShop(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
               
@@ -575,7 +585,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                 </div>
                 <button
                   onClick={() => setReviewModalShop(null)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                 >
                   閉じる
                 </button>
@@ -587,16 +597,26 @@ export default function Map({ refreshTrigger }: MapProps) {
 
       {/* 店舗詳細モーダル */}
       {selectedShop && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            zIndex: 1000,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}
+          onClick={() => setSelectedShop(null)}
+        >
+          <div 
+            className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-800">☕ {selectedShop.name}</h2>
                 <button
                   onClick={() => setSelectedShop(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
               
@@ -642,7 +662,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                       const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedShop.latitude},${selectedShop.longitude}`
                       window.open(url, '_blank')
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
                     🗺️ ルート案内
                   </button>
