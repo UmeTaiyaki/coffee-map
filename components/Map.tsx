@@ -54,8 +54,13 @@ const CurrentLocationIcon = L.icon({
   popupAnchor: [0, -12]
 })
 
+// Leafletの型拡張
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: string
+}
+
 // Leafletのデフォルトアイコンパスの修正
-delete (L.Icon.Default.prototype as any)._getIconUrl
+delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
