@@ -29,7 +29,6 @@ const AddShopForm = dynamic(() => import('../components/AddShopForm'), {
 })
 
 export default function Home() {
-  const [shops, setShops] = useState([])
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [isClient, setIsClient] = useState(false)
 

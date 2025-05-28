@@ -37,7 +37,11 @@ interface Shop {
   description?: string
   latitude: number
   longitude: number
-  created_at?: string // オプショナルに変更
+  created_at?: string
+}
+
+interface ShopWithDistance extends Shop {
+  distance: number
 }
 
 interface MapProps {
@@ -124,18 +128,18 @@ export default function Map({ refreshTrigger }: MapProps) {
       setError(null)
       
       // まずテーブルの存在確認
-      const { data, error } = await supabase
+      const { error: testError } = await supabase
         .from('shops')
         .select('*')
         .limit(1)
       
-      if (error) {
+      if (testError) {
         // テーブルが存在しない場合のエラーハンドリング
-        if (error.message.includes('does not exist')) {
+        if (testError.message.includes('does not exist')) {
           setError('shopsテーブルが存在しません。Supabaseでテーブルを作成してください。')
           return
         }
-        throw error
+        throw testError
       }
       
       // 実際のデータ取得
@@ -172,14 +176,14 @@ export default function Map({ refreshTrigger }: MapProps) {
   }, [refreshTrigger, isClient])
 
   // 現在地周辺の店舗をソートして表示
-  const shopsWithDistance = currentLocation 
+  const shopsWithDistance: (Shop | ShopWithDistance)[] = currentLocation 
     ? shops.map(shop => ({
         ...shop,
         distance: calculateDistance(
           currentLocation[0], currentLocation[1],
           shop.latitude, shop.longitude
         )
-      })).sort((a, b) => a.distance - b.distance)
+      })).sort((a, b) => (a as ShopWithDistance).distance - (b as ShopWithDistance).distance)
     : shops
 
   // サーバーサイドまたはクライアントサイド読み込み前
@@ -331,7 +335,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                   )}
                   {currentLocation && 'distance' in shop && (
                     <p className="text-xs text-blue-600 mb-1">
-                      🚶 現在地から約 {(shop as any).distance.toFixed(1)}km
+                      🚶 現在地から約 {((shop as ShopWithDistance).distance).toFixed(1)}km
                     </p>
                   )}
                   <p className="text-xs text-gray-500">
@@ -362,11 +366,11 @@ export default function Map({ refreshTrigger }: MapProps) {
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <h4 className="text-sm font-medium text-blue-800 mb-2">📍 現在地から近い店舗</h4>
           <div className="space-y-1 max-h-32 overflow-y-auto">
-            {shopsWithDistance.slice(0, 5).map((shop) => (
+            {(shopsWithDistance as ShopWithDistance[]).slice(0, 5).map((shop) => (
               <div key={shop.id} className="text-xs text-blue-700 flex justify-between">
                 <span>☕ {shop.name}</span>
                 <span className="text-blue-600">
-                  {(shop as any).distance.toFixed(1)}km
+                  {shop.distance.toFixed(1)}km
                 </span>
               </div>
             ))}
