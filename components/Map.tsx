@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -102,17 +102,27 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
   return null
 }
 
-// 地図リサイズ処理コンポーネント
+// 地図リサイズ処理コンポーネント（改善版）
 function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
   const map = useMap()
   
   useEffect(() => {
     // サイドパネルの状態変更時に地図をリサイズ
-    const timer = setTimeout(() => {
-      map.invalidateSize()
-    }, 300) // アニメーション完了後にリサイズ
+    const handleResize = () => {
+      // 少し遅延させてCSSアニメーション完了後にリサイズ
+      setTimeout(() => {
+        map.invalidateSize()
+      }, 350) // CSSのtransition-durationに合わせて調整
+    }
+
+    handleResize()
+
+    // ウィンドウリサイズイベントもリスニング
+    window.addEventListener('resize', handleResize)
     
-    return () => clearTimeout(timer)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
   }, [sidePanelOpen, map])
   
   return null
@@ -147,6 +157,9 @@ export default function Map({ refreshTrigger }: MapProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [priceFilter, setPriceFilter] = useState<string>('all')
   const [featureFilter, setFeatureFilter] = useState<string[]>([])
+
+  // 地図コンテナのref
+  const mapContainerRef = useRef<HTMLDivElement>(null)
 
   // 現在時刻を取得
   const getCurrentDay = () => new Date().getDay()
@@ -549,17 +562,31 @@ export default function Map({ refreshTrigger }: MapProps) {
         </div>
       )}
 
-      {/* 地図 - サイドパネル表示時はマージンではなく幅を調整 */}
+      {/* 地図 - 修正されたレイアウト */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div 
-          className={`h-96 transition-all duration-300 ${
-            sidePanelOpen ? 'md:mr-[28rem]' : ''
+          ref={mapContainerRef}
+          className={`transition-all duration-300 ease-in-out ${
+            sidePanelOpen ? 'h-96 md:h-96' : 'h-96'
           }`}
+          style={{
+            width: '100%',
+            position: 'relative'
+          }}
         >
           <MapContainer 
             center={mapCenter}
             zoom={mapZoom}
-            style={{ height: '100%', width: '100%' }}
+            style={{ 
+              height: '100%', 
+              width: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1
+            }}
           >
             <ChangeMapView center={mapCenter} zoom={mapZoom} />
             <MapResizer sidePanelOpen={sidePanelOpen} />
@@ -704,10 +731,10 @@ export default function Map({ refreshTrigger }: MapProps) {
         </div>
       )}
 
-      {/* 店舗一覧（距離順） - サイドパネル表示時は幅を調整 */}
+      {/* 店舗一覧（距離順） - サイドパネル表示時はオーバーレイ表示に変更 */}
       {currentLocation && filteredShops.length > 0 && (
-        <div className={`bg-white p-4 rounded-lg shadow-sm transition-all duration-300 ${
-          sidePanelOpen ? 'md:mr-[28rem]' : ''
+        <div className={`bg-white p-4 rounded-lg shadow-sm ${
+          sidePanelOpen ? 'hidden md:block' : ''
         }`}>
           <h3 className="text-lg font-medium mb-3 text-gray-800">📍 現在地から近い店舗</h3>
           <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -791,6 +818,20 @@ export default function Map({ refreshTrigger }: MapProps) {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+          .md\\:h-96 {
+            height: 24rem !important;
+          }
+        }
+        
+        /* サイドパネル表示時の地図調整 */
+        @media (min-width: 768px) {
+          .map-with-panel {
+            margin-right: 28rem;
+          }
         }
       `}</style>
     </div>
