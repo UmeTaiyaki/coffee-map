@@ -13,6 +13,11 @@ function ChangeMapView({ center, zoom }: { center: [number, number], zoom: numbe
   return null
 }
 
+// Leafletの型拡張
+interface LeafletIconDefault extends L.Icon.Default {
+  _getIconUrl?: string
+}
+
 interface Shop {
   id: number
   name: string
@@ -54,11 +59,6 @@ const CurrentLocationIcon = L.icon({
   popupAnchor: [0, -12]
 })
 
-// Leafletの型拡張
-interface LeafletIconDefault extends L.Icon.Default {
-  _getIconUrl?: string
-}
-
 // Leafletのデフォルトアイコンパスの修正
 delete (L.Icon.Default.prototype as LeafletIconDefault)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -83,6 +83,8 @@ export default function Map({ refreshTrigger }: MapProps) {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null)
   const [reviewModalShop, setReviewModalShop] = useState<Shop | null>(null)
   const [shopRatings, setShopRatings] = useState<Record<number, { average: number, count: number }>>({})
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [showStats, setShowStats] = useState(false)
 
   // 店舗の評価を取得
   const fetchShopRatings = async () => {
@@ -115,14 +117,36 @@ export default function Map({ refreshTrigger }: MapProps) {
     }
   }
 
+  // ダークモード機能
+  useEffect(() => {
+    if (isClient) {
+      // LocalStorageからダークモード設定を読み込み
+      const savedDarkMode = localStorage.getItem('coffee-map-dark-mode')
+      if (savedDarkMode !== null) {
+        setIsDarkMode(JSON.parse(savedDarkMode))
+      } else {
+        // システム設定を検出
+        setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches)
+      }
+    }
+  }, [isClient])
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode
+    setIsDarkMode(newDarkMode)
+    localStorage.setItem('coffee-map-dark-mode', JSON.stringify(newDarkMode))
+  }
+
   // お気に入り機能
   useEffect(() => {
-    // LocalStorageからお気に入りを読み込み
-    const savedFavorites = localStorage.getItem('coffee-map-favorites')
-    if (savedFavorites) {
-      setFavorites(new Set(JSON.parse(savedFavorites)))
+    if (isClient) {
+      // LocalStorageからお気に入りを読み込み
+      const savedFavorites = localStorage.getItem('coffee-map-favorites')
+      if (savedFavorites) {
+        setFavorites(new Set(JSON.parse(savedFavorites)))
+      }
     }
-  }, [])
+  }, [isClient])
 
   const toggleFavorite = (shopId: number) => {
     const newFavorites = new Set(favorites)
@@ -325,358 +349,556 @@ export default function Map({ refreshTrigger }: MapProps) {
   }
 
   return (
-    <div className="w-full">
-      {/* 検索とフィルター */}
-      <div className="mb-4 space-y-2">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="🔍 店舗名・住所で検索..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={() => {
-              setSearchQuery('')
-              setShowFavoritesOnly(false)
-            }}
-            className="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600"
-          >
-            クリア
-          </button>
-        </div>
-        
-        <div className="flex items-center">
-          <label className="flex items-center text-sm">
-            <input
-              type="checkbox"
-              checked={showFavoritesOnly}
-              onChange={(e) => setShowFavoritesOnly(e.target.checked)}
-              className="mr-2"
-            />
-            ❤️ お気に入りのみ表示
-          </label>
-        </div>
-      </div>
-
-      <div className="mb-2 flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          店舗数: {shopsWithDistance.length}件
-          {filteredShops.length !== shops.length && (
-            <span className="text-blue-600"> (全{shops.length}件中)</span>
-          )}
-          {currentLocation && shopsWithDistance.length > 0 && (
-            <span className="ml-2 text-blue-600">
-              📍 現在地から近い順
-            </span>
-          )}
-        </p>
-        <div className="flex gap-1">
-          <button 
-            onClick={getCurrentLocation}
-            disabled={isLocating}
-            className={`text-xs px-2 py-1 rounded transition-colors ${
-              isLocating 
-                ? 'bg-gray-400 text-white cursor-not-allowed'
-                : currentLocation
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-green-600 text-white hover:bg-green-700'
+    <div className={`w-full ${isDarkMode ? 'dark' : ''}`}>
+      <div className={`transition-all duration-300 ${isDarkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
+        {/* ダークモード切り替えボタン */}
+        <div className="mb-2 flex justify-end">
+                      <button
+            onClick={toggleDarkMode}
+            className={`px-3 py-1 rounded-md text-sm transition-all hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-gray-700 text-yellow-300 hover:bg-gray-600 border border-gray-600' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
             }`}
           >
-            {isLocating ? '📍 取得中...' : currentLocation ? '📍 現在地更新' : '📍 現在地取得'}
-          </button>
-          <button 
-            onClick={fetchShops}
-            className="text-xs bg-gray-600 text-white px-2 py-1 rounded hover:bg-gray-700"
-            disabled={loading}
-          >
-            🔄 更新
+            {isDarkMode ? '☀️ ライト' : '🌙 ダーク'}
           </button>
         </div>
-      </div>
 
-      {/* エラー表示 */}
-      {locationError && (
-        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-          ⚠️ {locationError}
-        </div>
-      )}
-
-      {loading && (
-        <div className="h-96 w-full bg-gray-50 border-2 border-gray-200 rounded-lg flex items-center justify-center">
-          <div className="text-center text-gray-600">
-            <div className="text-4xl mb-2">⏳</div>
-            <div className="text-sm">店舗データを読み込み中...</div>
-          </div>
-        </div>
-      )}
-
-      {!loading && (
-        <div className="h-96 w-full rounded-lg overflow-hidden border-2 border-gray-300">
-          <MapContainer 
-            center={finalMapCenter}
-            zoom={mapZoom}
-            style={{ height: '100%', width: '100%' }}
-          >
-            {/* 地図の中心を動的に変更 */}
-            <ChangeMapView center={finalMapCenter} zoom={mapZoom} />
-            
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        {/* 検索とフィルター */}
+        <div className="mb-4 space-y-2">
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <input
+              type="text"
+              placeholder="🔍 店舗名・住所で検索..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                isDarkMode 
+                  ? 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:bg-gray-600' 
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              }`}
             />
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setShowFavoritesOnly(false)
+              }}
+              className={`px-3 py-2 rounded-md text-sm transition-all hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-gray-600 text-gray-100 hover:bg-gray-500' 
+                  : 'bg-gray-500 text-white hover:bg-gray-600'
+              }`}
+            >
+              クリア
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between flex-col sm:flex-row gap-2">
+            <label className="flex items-center text-sm">
+              <input
+                type="checkbox"
+                checked={showFavoritesOnly}
+                onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                className="mr-2"
+              />
+              ❤️ お気に入りのみ表示
+            </label>
             
-            {/* 現在地マーカー */}
-            {currentLocation && (
-              <Marker
-                position={currentLocation}
-                icon={CurrentLocationIcon}
-              >
-                <Popup>
-                  <div className="text-center">
-                    <strong>📍 現在地</strong>
-                    <br />
-                    <small>緯度: {currentLocation[0].toFixed(6)}</small>
-                    <br />
-                    <small>経度: {currentLocation[1].toFixed(6)}</small>
-                  </div>
-                </Popup>
-              </Marker>
-            )}
-            
-            {/* 店舗マーカー */}
-            {shopsWithDistance.map((shop) => (
-              <Marker
-                key={shop.id}
-                position={[shop.latitude, shop.longitude]}
-                icon={DefaultIcon}
-              >
-                <Popup>
-                  <div className="max-w-xs">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-gray-800 flex-1">
-                        ☕ {shop.name}
-                      </h3>
-                      <button
-                        onClick={() => toggleFavorite(shop.id)}
-                        className={`ml-2 text-lg ${
-                          favorites.has(shop.id) ? 'text-red-500' : 'text-gray-400'
-                        } hover:text-red-500 transition-colors`}
-                      >
-                        {favorites.has(shop.id) ? '❤️' : '🤍'}
-                      </button>
-                    </div>
-                    
-                    {/* 評価表示 */}
-                    {shopRatings[shop.id] && (
-                      <div className="flex items-center mb-2">
-                        <div className="flex text-xs">
-                          {renderStars(Math.round(shopRatings[shop.id].average))}
-                        </div>
-                        <span className="ml-1 text-xs text-gray-600">
-                          {shopRatings[shop.id].average.toFixed(1)} ({shopRatings[shop.id].count}件)
-                        </span>
-                      </div>
-                    )}
-                    
-                    <p className="text-sm text-gray-600 mb-2">
-                      📍 {shop.address}
-                    </p>
-                    {shop.description && (
-                      <p className="text-sm text-gray-700 mb-2">
-                        {shop.description}
-                      </p>
-                    )}
-                    {currentLocation && shop.distance > 0 && (
-                      <p className="text-xs text-blue-600 mb-1">
-                        🚶 現在地から約 {shop.distance.toFixed(1)}km
-                      </p>
-                    )}
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-xs text-gray-500">
-                        {shop.created_at 
-                          ? `登録日: ${new Date(shop.created_at).toLocaleDateString('ja-JP')}`
-                          : `店舗ID: ${shop.id}`
-                        }
-                      </p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setReviewModalShop(shop)}
-                          className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
-                        >
-                          📝 レビュー
-                        </button>
-                        <button
-                          onClick={() => setSelectedShop(shop)}
-                          className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
-                        >
-                          詳細
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
-      )}
-
-      {shopsWithDistance.length === 0 && !loading && (
-        <div className="text-center text-gray-500 mt-4">
-          <div className="text-4xl mb-2">☕</div>
-          <div className="text-sm">
-            {searchQuery || showFavoritesOnly 
-              ? '条件に一致する店舗が見つかりません'
-              : 'まだ店舗が登録されていません。\n右側のフォームから最初の店舗を追加してみましょう！'
-            }
+            <button
+              onClick={() => setShowStats(true)}
+              className={`px-3 py-1 rounded-md text-xs transition-all hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-blue-700 text-white hover:bg-blue-600' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              📊 統計
+            </button>
           </div>
         </div>
-      )}
 
-      {/* 現在地周辺の店舗リスト */}
-      {currentLocation && shopsWithDistance.length > 0 && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <h4 className="text-sm font-medium text-blue-800 mb-2">📍 現在地から近い店舗</h4>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {shopsWithDistance.filter(shop => shop.distance > 0).slice(0, 5).map((shop) => (
-              <div key={shop.id} className="text-xs text-blue-700 flex justify-between items-center">
-                <div className="flex items-center">
-                  <span className={favorites.has(shop.id) ? 'text-red-500' : ''}>
-                    {favorites.has(shop.id) ? '❤️' : '☕'} {shop.name}
+        <div className="mb-2 flex justify-between items-center flex-col sm:flex-row gap-2">
+          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            店舗数: {shopsWithDistance.length}件
+            {filteredShops.length !== shops.length && (
+              <span className="text-blue-500"> (全{shops.length}件中)</span>
+            )}
+            {currentLocation && shopsWithDistance.length > 0 && (
+              <span className="ml-2 text-blue-500">
+                📍 現在地から近い順
+              </span>
+            )}
+          </p>
+          <div className="flex gap-1">
+            <button 
+              onClick={getCurrentLocation}
+              disabled={isLocating}
+              className={`text-xs px-2 py-1 rounded transition-all min-h-[44px] ${
+                isLocating 
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : currentLocation
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105'
+                  : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
+              }`}
+            >
+              {isLocating ? '📍 取得中...' : currentLocation ? '📍 現在地更新' : '📍 現在地取得'}
+            </button>
+            <button 
+              onClick={fetchShops}
+              className={`text-xs px-2 py-1 rounded transition-all hover:scale-105 min-h-[44px] ${
+                isDarkMode 
+                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
+              }`}
+              disabled={loading}
+            >
+              {loading ? '🔄 更新中...' : '🔄 更新'}
+            </button>
+          </div>
+        </div>
+
+        {/* エラー表示 */}
+        {locationError && (
+          <div className={`mb-2 p-2 border rounded text-sm ${
+            isDarkMode 
+              ? 'bg-red-800 border-red-600 text-red-200' 
+              : 'bg-red-50 border-red-200 text-red-600'
+          }`}>
+            ⚠️ {locationError}
+          </div>
+        )}
+
+        {loading && (
+          <div className={`h-96 w-full border-2 rounded-lg flex items-center justify-center ${
+            isDarkMode 
+              ? 'bg-gray-700 border-gray-600' 
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className={`text-center ${isDarkMode ? 'text-gray-200' : 'text-gray-600'}`}>
+              <div className="text-4xl mb-2 animate-bounce">⏳</div>
+              <div className="text-sm">店舗データを読み込み中...</div>
+            </div>
+          </div>
+        )}
+
+        {!loading && (
+          <div className={`h-96 w-full rounded-lg overflow-hidden border-2 ${
+            isDarkMode ? 'border-gray-600' : 'border-gray-300'
+          }`}>
+            <MapContainer 
+              center={finalMapCenter}
+              zoom={mapZoom}
+              style={{ height: '100%', width: '100%' }}
+            >
+              {/* 地図の中心を動的に変更 */}
+              <ChangeMapView center={finalMapCenter} zoom={mapZoom} />
+              
+              <TileLayer
+                url={isDarkMode 
+                  ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                }
+                attribution={isDarkMode
+                  ? '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }
+              />
+              
+              {/* 現在地マーカー */}
+              {currentLocation && (
+                <Marker
+                  position={currentLocation}
+                  icon={CurrentLocationIcon}
+                >
+                  <Popup>
+                    <div className="text-center">
+                      <strong>📍 現在地</strong>
+                      <br />
+                      <small>緯度: {currentLocation[0].toFixed(6)}</small>
+                      <br />
+                      <small>経度: {currentLocation[1].toFixed(6)}</small>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+              
+              {/* 店舗マーカー */}
+              {shopsWithDistance.map((shop) => (
+                <Marker
+                  key={shop.id}
+                  position={[shop.latitude, shop.longitude]}
+                  icon={DefaultIcon}
+                >
+                  <Popup>
+                    <div className="max-w-xs">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-800 flex-1">
+                          ☕ {shop.name}
+                        </h3>
+                        <button
+                          onClick={() => toggleFavorite(shop.id)}
+                          className={`ml-2 text-lg ${
+                            favorites.has(shop.id) ? 'text-red-500' : 'text-gray-400'
+                          } hover:text-red-500 transition-colors`}
+                        >
+                          {favorites.has(shop.id) ? '❤️' : '🤍'}
+                        </button>
+                      </div>
+                      
+                      {/* 評価表示 */}
+                      {shopRatings[shop.id] && (
+                        <div className="flex items-center mb-2">
+                          <div className="flex text-xs">
+                            {renderStars(Math.round(shopRatings[shop.id].average))}
+                          </div>
+                          <span className="ml-1 text-xs text-gray-600">
+                            {shopRatings[shop.id].average.toFixed(1)} ({shopRatings[shop.id].count}件)
+                          </span>
+                        </div>
+                      )}
+                      
+                      <p className="text-sm text-gray-600 mb-2">
+                        📍 {shop.address}
+                      </p>
+                      {shop.description && (
+                        <p className="text-sm text-gray-700 mb-2">
+                          {shop.description}
+                        </p>
+                      )}
+                      {currentLocation && shop.distance > 0 && (
+                        <p className="text-xs text-blue-600 mb-1">
+                          🚶 現在地から約 {shop.distance.toFixed(1)}km
+                        </p>
+                      )}
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-xs text-gray-500">
+                          {shop.created_at 
+                            ? `登録日: ${new Date(shop.created_at).toLocaleDateString('ja-JP')}`
+                            : `店舗ID: ${shop.id}`
+                          }
+                        </p>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setReviewModalShop(shop)}
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                          >
+                            📝 レビュー
+                          </button>
+                          <button
+                            onClick={() => setSelectedShop(shop)}
+                            className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                          >
+                            詳細
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
+        )}
+
+        {shopsWithDistance.length === 0 && !loading && (
+          <div className={`text-center mt-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+            <div className="text-4xl mb-2">☕</div>
+            <div className="text-sm">
+              {searchQuery || showFavoritesOnly 
+                ? '条件に一致する店舗が見つかりません'
+                : 'まだ店舗が登録されていません。\n右側のフォームから最初の店舗を追加してみましょう！'
+              }
+            </div>
+          </div>
+        )}
+
+        {/* 現在地周辺の店舗リスト */}
+        {currentLocation && shopsWithDistance.length > 0 && (
+          <div className={`mt-4 p-3 border rounded-md ${
+            isDarkMode 
+              ? 'bg-blue-800 border-blue-600' 
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <h4 className={`text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-blue-200' : 'text-blue-800'
+            }`}>📍 現在地から近い店舗</h4>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {shopsWithDistance.filter(shop => shop.distance > 0).slice(0, 5).map((shop) => (
+                <div key={shop.id} className={`text-xs flex justify-between items-center ${
+                  isDarkMode ? 'text-blue-200' : 'text-blue-700'
+                }`}>
+                  <div className="flex items-center">
+                    <span className={favorites.has(shop.id) ? 'text-red-500' : ''}>
+                      {favorites.has(shop.id) ? '❤️' : '☕'} {shop.name}
+                    </span>
+                  </div>
+                  <span className={isDarkMode ? 'text-blue-300' : 'text-blue-600'}>
+                    {shop.distance.toFixed(1)}km
                   </span>
                 </div>
-                <span className="text-blue-600">
-                  {shop.distance.toFixed(1)}km
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 簡易レビューモーダル */}
-      {reviewModalShop && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ 
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)'
-          }}
-          onClick={() => setReviewModalShop(null)}
-        >
-          <div 
-            className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold text-gray-800">📝 {reviewModalShop.name}</h2>
-                <button
-                  onClick={() => setReviewModalShop(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none"
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="text-center py-8">
-                <div className="text-4xl mb-4">🚧</div>
-                <div className="text-lg font-medium mb-2">レビュー機能</div>
-                <div className="text-sm text-gray-600 mb-4">
-                  レビュー機能は現在開発中です。<br/>
-                  近日中に追加予定です！
-                </div>
-                <button
-                  onClick={() => setReviewModalShop(null)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  閉じる
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 店舗詳細モーダル */}
-      {selectedShop && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ 
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)'
-          }}
-          onClick={() => setSelectedShop(null)}
-        >
+        {/* 統計ダッシュボードモーダル */}
+        {showStats && (
           <div 
-            className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ 
+              zIndex: 9999,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)'
+            }}
+            onClick={() => setShowStats(false)}
           >
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-bold text-gray-800">☕ {selectedShop.name}</h2>
-                <button
-                  onClick={() => setSelectedShop(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none"
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">📍 住所</h3>
-                  <p className="text-sm text-gray-600">{selectedShop.address}</p>
-                </div>
-                
-                {selectedShop.description && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700">📝 説明</h3>
-                    <p className="text-sm text-gray-600">{selectedShop.description}</p>
-                  </div>
-                )}
-                
-                {currentLocation && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700">🚶 距離</h3>
-                    <p className="text-sm text-gray-600">
-                      現在地から約 {calculateDistance(
-                        currentLocation[0], currentLocation[1],
-                        selectedShop.latitude, selectedShop.longitude
-                      ).toFixed(1)}km
-                    </p>
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center pt-4 border-t">
+            <div 
+              className={`rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl transition-all ${
+                isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <h2 className="text-2xl font-bold">📊 統計ダッシュボード</h2>
                   <button
-                    onClick={() => toggleFavorite(selectedShop.id)}
-                    className={`px-4 py-2 rounded-md transition-colors ${
-                      favorites.has(selectedShop.id)
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    onClick={() => setShowStats(false)}
+                    className={`text-xl font-bold leading-none hover:scale-110 transition-transform ${
+                      isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
-                    {favorites.has(selectedShop.id) ? '❤️ お気に入り解除' : '🤍 お気に入り追加'}
+                    ×
                   </button>
-                  
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 基本統計 */}
+                  <div className={`p-4 rounded-lg transition-all hover:scale-105 ${
+                    isDarkMode ? 'bg-gray-600' : 'bg-gray-50'
+                  }`}>
+                    <h3 className="text-lg font-semibold mb-3">📈 基本統計</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>総店舗数:</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>お気に入り登録数:</span>
+                        <span className="font-medium">{favorites.size}件</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>レビュー総数:</span>
+                        <span className="font-medium">
+                          {Object.values(shopRatings).reduce((sum, rating) => sum + rating.count, 0)}件
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 評価統計 */}
+                  <div className={`p-4 rounded-lg transition-all hover:scale-105 ${
+                    isDarkMode ? 'bg-gray-600' : 'bg-gray-50'
+                  }`}>
+                    <h3 className="text-lg font-semibold mb-3">⭐ 評価統計</h3>
+                    <div className="space-y-2">
+                      {Object.keys(shopRatings).length > 0 ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span>平均評価:</span>
+                            <span className="font-medium">
+                              {(Object.values(shopRatings).reduce((sum, rating) => sum + rating.average, 0) / Object.keys(shopRatings).length).toFixed(1)}⭐
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>評価済み店舗:</span>
+                            <span className="font-medium">{Object.keys(shopRatings).length}件</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          まだ評価がありません
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 人気店舗ランキング */}
+                  <div className={`p-4 rounded-lg md:col-span-2 transition-all hover:scale-105 ${
+                    isDarkMode ? 'bg-gray-600' : 'bg-gray-50'
+                  }`}>
+                    <h3 className="text-lg font-semibold mb-3">🏆 人気店舗ランキング</h3>
+                    {Object.keys(shopRatings).length > 0 ? (
+                      <div className="space-y-2">
+                        {Object.entries(shopRatings)
+                          .sort(([,a], [,b]) => b.average - a.average)
+                          .slice(0, 5)
+                          .map(([shopId, rating], index) => {
+                            const shop = shops.find(s => s.id === parseInt(shopId))
+                            return shop ? (
+                              <div key={shopId} className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <span className="text-lg mr-2">
+                                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                                  </span>
+                                  <span>{shop.name}</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className="text-yellow-400 mr-1">⭐</span>
+                                  <span className="font-medium">
+                                    {rating.average.toFixed(1)} ({rating.count}件)
+                                  </span>
+                                </div>
+                              </div>
+                            ) : null
+                          })}
+                      </div>
+                    ) : (
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        まだレビューがありません
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 簡易レビューモーダル */}
+        {reviewModalShop && (
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ 
+              zIndex: 9999,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)'
+            }}
+            onClick={() => setReviewModalShop(null)}
+          >
+            <div 
+              className={`rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl transition-all ${
+                isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-xl font-bold">📝 {reviewModalShop.name}</h2>
                   <button
-                    onClick={() => {
-                      const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedShop.latitude},${selectedShop.longitude}`
-                      window.open(url, '_blank')
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    onClick={() => setReviewModalShop(null)}
+                    className={`text-xl font-bold leading-none hover:scale-110 transition-transform ${
+                      isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+                    }`}
                   >
-                    🗺️ ルート案内
+                    ×
+                  </button>
+                </div>
+                
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4 animate-bounce">🚧</div>
+                  <div className="text-lg font-medium mb-2">レビュー機能</div>
+                  <div className={`text-sm mb-4 ${isDarkMode ? 'text-gray-200' : 'text-gray-600'}`}>
+                    レビュー機能は現在開発中です。<br/>
+                    近日中に追加予定です！
+                  </div>
+                  <button
+                    onClick={() => setReviewModalShop(null)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-all hover:scale-105"
+                  >
+                    閉じる
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 店舗詳細モーダル */}
+        {selectedShop && (
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ 
+              zIndex: 9999,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)'
+            }}
+            onClick={() => setSelectedShop(null)}
+          >
+            <div 
+              className={`rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto shadow-xl transition-all ${
+                isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-xl font-bold">☕ {selectedShop.name}</h2>
+                  <button
+                    onClick={() => setSelectedShop(null)}
+                    className={`text-xl font-bold leading-none hover:scale-110 transition-transform ${
+                      isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>📍 住所</h3>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{selectedShop.address}</p>
+                  </div>
+                  
+                  {selectedShop.description && (
+                    <div>
+                      <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>📝 説明</h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{selectedShop.description}</p>
+                    </div>
+                  )}
+                  
+                  {currentLocation && (
+                    <div>
+                      <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>🚶 距離</h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        現在地から約 {calculateDistance(
+                          currentLocation[0], currentLocation[1],
+                          selectedShop.latitude, selectedShop.longitude
+                        ).toFixed(1)}km
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className={`flex justify-between items-center pt-4 border-t ${
+                    isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                  }`}>
+                    <button
+                      onClick={() => toggleFavorite(selectedShop.id)}
+                      className={`px-4 py-2 rounded-md transition-all hover:scale-105 ${
+                        favorites.has(selectedShop.id)
+                          ? isDarkMode 
+                            ? 'bg-red-700 text-red-200 hover:bg-red-600'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {favorites.has(selectedShop.id) ? '❤️ お気に入り解除' : '🤍 お気に入り追加'}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedShop.latitude},${selectedShop.longitude}`
+                        window.open(url, '_blank')
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all hover:scale-105"
+                    >
+                      🗺️ ルート案内
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
