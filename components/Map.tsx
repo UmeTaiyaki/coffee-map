@@ -102,6 +102,22 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
   return null
 }
 
+// 地図リサイズ処理コンポーネント
+function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    // サイドパネルの状態変更時に地図をリサイズ
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+    }, 300) // アニメーション完了後にリサイズ
+    
+    return () => clearTimeout(timer)
+  }, [sidePanelOpen, map])
+  
+  return null
+}
+
 // ローディングコンポーネント
 function LoadingSpinner() {
   return (
@@ -277,7 +293,7 @@ export default function Map({ refreshTrigger }: MapProps) {
     })
   }, [])
 
-  // 店舗詳細を表示
+  // 店舗詳細を表示（詳細ボタンクリック時のみ）
   const showShopDetails = useCallback((shop: ShopWithDetails) => {
     setSelectedShop(shop)
     setSidePanelOpen(true)
@@ -533,17 +549,20 @@ export default function Map({ refreshTrigger }: MapProps) {
         </div>
       )}
 
-      {/* 地図 */}
-      <div className={`bg-white rounded-lg shadow-sm overflow-hidden transition-all duration-300 ${
-        sidePanelOpen ? 'mr-0 md:mr-[28rem]' : ''
-      }`}>
-        <div className="h-96 w-full">
+      {/* 地図 - サイドパネル表示時はマージンではなく幅を調整 */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div 
+          className={`h-96 transition-all duration-300 ${
+            sidePanelOpen ? 'md:mr-[28rem]' : ''
+          }`}
+        >
           <MapContainer 
             center={mapCenter}
             zoom={mapZoom}
             style={{ height: '100%', width: '100%' }}
           >
             <ChangeMapView center={mapCenter} zoom={mapZoom} />
+            <MapResizer sidePanelOpen={sidePanelOpen} />
             
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -561,15 +580,12 @@ export default function Map({ refreshTrigger }: MapProps) {
               </Marker>
             )}
             
-            {/* 店舗マーカー */}
+            {/* 店舗マーカー - クリック時はポップアップのみ表示 */}
             {filteredShops.map((shop) => (
               <Marker
                 key={shop.id}
                 position={[shop.latitude, shop.longitude]}
                 icon={DefaultIcon}
-                eventHandlers={{
-                  click: () => showShopDetails(shop)
-                }}
               >
                 <Popup>
                   <div className="p-2 max-w-xs">
@@ -643,7 +659,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                       </p>
                     )}
 
-                    {/* アクションボタン */}
+                    {/* アクションボタン - 詳細ボタンのみでサイドパネルを表示 */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -688,10 +704,10 @@ export default function Map({ refreshTrigger }: MapProps) {
         </div>
       )}
 
-      {/* 店舗一覧（距離順） */}
+      {/* 店舗一覧（距離順） - サイドパネル表示時は幅を調整 */}
       {currentLocation && filteredShops.length > 0 && (
         <div className={`bg-white p-4 rounded-lg shadow-sm transition-all duration-300 ${
-          sidePanelOpen ? 'mr-0 md:mr-[28rem]' : ''
+          sidePanelOpen ? 'md:mr-[28rem]' : ''
         }`}>
           <h3 className="text-lg font-medium mb-3 text-gray-800">📍 現在地から近い店舗</h3>
           <div className="space-y-3 max-h-60 overflow-y-auto">

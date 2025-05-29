@@ -76,26 +76,37 @@ export default function ShopSidePanel({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, onClose])
 
-  // パネル外クリックで閉じる（オプション）
+  // パネル外クリックで閉じる処理を改善
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        // 地図上のクリックの場合のみ閉じる（マーカークリックは除外）
-        const target = e.target as HTMLElement
-        if (target.closest('.leaflet-container') && !target.closest('.leaflet-marker-icon')) {
-          onClose()
-        }
-      }
+      if (!isOpen || !panelRef.current) return
+      
+      const target = e.target as HTMLElement
+      
+      // パネル内のクリックは無視
+      if (panelRef.current.contains(target)) return
+      
+      // Leafletのポップアップ内のクリックは無視
+      if (target.closest('.leaflet-popup')) return
+      
+      // Leafletのマーカーのクリックは無視
+      if (target.closest('.leaflet-marker-icon')) return
+      
+      // それ以外の場合はパネルを閉じる
+      onClose()
     }
 
     if (isOpen) {
-      // 少し遅延させてマーカークリックイベントとの競合を避ける
-      setTimeout(() => {
+      // イベントリスナーを少し遅延させてマーカークリックとの競合を避ける
+      const timer = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside)
       }, 100)
+      
+      return () => {
+        clearTimeout(timer)
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
     }
-
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen, onClose])
 
   if (!shop) return null
@@ -134,7 +145,7 @@ export default function ShopSidePanel({
       {/* オーバーレイ（モバイル用） */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-20 z-[9998] lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-20 z-[9998] md:hidden"
           onClick={onClose}
         />
       )}
