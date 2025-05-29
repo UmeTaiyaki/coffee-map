@@ -79,7 +79,7 @@ const animationStyles = {
 export default function Home() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [isClient, setIsClient] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  
 
   // クライアントサイドでのみレンダリング
   useEffect(() => {
@@ -91,11 +91,6 @@ export default function Home() {
     // 成功時のフィードバック
     const event = new CustomEvent('shopAdded', { detail: { timestamp: Date.now() } })
     window.dispatchEvent(event)
-  }, [])
-
-  const handleRetry = useCallback(() => {
-    setError(null)
-    setRefreshTrigger(prev => prev + 1)
   }, [])
 
   // エラーフォールバック
