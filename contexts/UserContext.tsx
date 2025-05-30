@@ -1,4 +1,4 @@
-// contexts/UserContext.tsx
+// contexts/UserContext.tsx - Google OAuth完全対応版
 'use client'
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
@@ -125,11 +125,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (error) {
         throw error
       }
+      // OAuth フローなので、ここではローディングを終了しない
+      // リダイレクト後にコールバックで処理される
     } catch (error) {
       console.error('Googleサインインエラー:', error)
-      throw new Error('Googleサインインに失敗しました')
-    } finally {
       setLoading(false)
+      throw new Error('Googleサインインに失敗しました')
     }
   }
 
@@ -296,6 +297,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email)
+      
       setSession(session)
       
       if (session?.user) {
