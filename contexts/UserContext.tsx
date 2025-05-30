@@ -1,10 +1,10 @@
-// contexts/UserContext.tsx - Google OAuth修正版
+// contexts/UserContext.tsx - エラー修正版
 'use client'
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
 
-// ユーザー型定義（セキュリティ強化）
+// ユーザー型定義
 export interface User {
   id: string
   email?: string
@@ -14,7 +14,6 @@ export interface User {
   is_anonymous: boolean
   created_at?: string
   last_active?: string
-  // セキュリティ関連フィールド
   role?: 'user' | 'moderator' | 'admin'
   is_verified?: boolean
   security_level?: number
@@ -44,7 +43,6 @@ interface UserContextType {
   updateProfile: (data: Partial<User>) => Promise<void>
   upgradeFromAnonymous: () => Promise<void>
   refreshUser: () => Promise<void>
-  // セキュリティ関連メソッド
   validateUserAction: (action: string, resourceOwner?: string) => boolean
   logSecurityEvent: (event: string, details?: any) => Promise<void>
 }
@@ -52,32 +50,26 @@ interface UserContextType {
 // コンテキスト作成
 const UserContext = createContext<UserContextType | undefined>(undefined)
 
-// セキュリティ設定
-const SECURITY_CONFIG = {
-  ANONYMOUS_RESTRICTIONS: {
-    MAX_SHOPS_PER_DAY: 3,
-    MAX_REVIEWS_PER_DAY: 10,
-    MAX_IMAGES_PER_SHOP: 1
-  },
-  RATE_LIMITS: {
-    SHOP_CREATION: 5, // per hour for authenticated users
-    REVIEW_CREATION: 20, // per hour
-    PROFILE_UPDATES: 10 // per hour
-  }
+// 入力値のサニタイズ
+const sanitizeInput = (input: string): string => {
+  return input
+    .trim()
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/[<>]/g, '')
+    .substring(0, 100)
 }
 
-// プロバイダーコンポーネント
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 権限チェック関数（先に定義）
+  // 権限チェック関数
   const isModeratorOrAdmin = (): boolean => {
     return !!user && (user.role === 'moderator' || user.role === 'admin')
   }
 
-  // レート制限チェック（先に定義）
+  // レート制限チェック
   const isRateLimited = (action: string): boolean => {
     if (!user) return true
     
@@ -94,14 +86,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const now = Date.now()
       const hourAgo = now - (60 * 60 * 1000)
       
-      // 1時間以上経過していればリセット
       if (data.timestamp < hourAgo) {
         localStorage.setItem(key, JSON.stringify({ count: 0, timestamp: now }))
         return false
       }
       
-      // レート制限チェック
-      const limit = SECURITY_CONFIG.RATE_LIMITS[action.toUpperCase() as keyof typeof SECURITY_CONFIG.RATE_LIMITS] || 10
+      const limits: Record<string, number> = {
+        'SHOP_CREATION': 5,
+        'REVIEW_CREATION': 20,
+        'PROFILE_UPDATES': 10
+      }
+      
+      const limit = limits[action.toUpperCase()] || 10
       return data.count >= limit
       
     } catch (error) {
@@ -110,7 +106,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // セキュリティコンテキストの計算（関数定義後に配置）
+  // セキュリティコンテキストの計算
   const security: SecurityContext = {
     canCreateShop: !!user && !isRateLimited('shop_creation'),
     canEditShop: (shopCreatedBy?: string) => 
@@ -126,23 +122,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     canAccessAdminFeatures: !!user && user.role === 'admin'
   }
 
-  // レート制限カウンターを増加
-  const incrementRateLimit = (action: string): void => {
-    if (!user) return
-    
-    try {
-      const key = `rate_limit_${action}_${user.id}`
-      const stored = localStorage.getItem(key)
-      const data = stored ? JSON.parse(stored) : { count: 0, timestamp: Date.now() }
-      
-      data.count += 1
-      localStorage.setItem(key, JSON.stringify(data))
-    } catch (error) {
-      console.error('Rate limit increment error:', error)
-    }
-  }
-
-  // Supabaseユーザーを内部User型に変換（セキュリティ強化）
+  // Supabaseユーザーを内部User型に変換
   const convertSupabaseUser = (supabaseUser: SupabaseUser, isAnonymous = false): User => {
     const userData = supabaseUser.user_metadata || {}
     
@@ -155,32 +135,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
       is_anonymous: isAnonymous,
       created_at: supabaseUser.created_at,
       last_active: new Date().toISOString(),
-      // セキュリティ関連フィールド
       role: userData.role || 'user',
       is_verified: !isAnonymous && !!supabaseUser.email_confirmed_at,
       security_level: isAnonymous ? 1 : (userData.role === 'admin' ? 3 : 2)
     }
   }
 
-  // 入力値のサニタイズ
-  const sanitizeInput = (input: string): string => {
-    return input
-      .trim()
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/[<>]/g, '')
-      .substring(0, 100) // 最大長制限
-  }
-
-  // セキュリティイベントのログ
+  // セキュリティイベントのログ（開発版）
   const logSecurityEvent = async (event: string, details?: any): Promise<void> => {
     try {
-      // 本番環境では適切なログシステムに送信
       const logData = {
         event,
         user_id: user?.id || 'anonymous',
         timestamp: new Date().toISOString(),
         user_agent: navigator.userAgent,
-        ip: 'client-side', // サーバーサイドで実際のIPを記録
         details: details || {}
       }
 
@@ -188,22 +156,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('Security Event:', logData)
       }
-
-      // 本番環境では外部ログサービスに送信
-      // await fetch('/api/security/log', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(logData)
-      // })
     } catch (error) {
       console.error('セキュリティログエラー:', error)
     }
   }
 
-  // ユーザープロファイルをデータベースに保存/更新（セキュリティ強化）
-  const saveUserProfile = async (userData: User) => {
+  // ユーザープロファイルをデータベースに保存/更新（エラーハンドリング強化）
+  const saveUserProfile = async (userData: User): Promise<void> => {
     try {
-      // RLSポリシーにより、自分のプロフィールのみ更新可能
+      // usersテーブルの存在確認とupsert
       const { error } = await supabase
         .from('users')
         .upsert({
@@ -224,26 +185,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
         })
 
       if (error) {
-        console.error('ユーザープロファイル保存エラー:', error)
+        // テーブルが存在しない場合は警告のみ
+        if (error.code === '42P01') {
+          console.warn('Users table does not exist. Please run database setup.')
+          return
+        }
         throw error
       }
 
       await logSecurityEvent('profile_updated', { user_id: userData.id })
     } catch (error) {
       console.error('ユーザープロファイル保存エラー:', error)
-      throw error
+      // プロファイル保存の失敗は致命的ではないので、エラーを投げない
     }
   }
 
-  // お気に入りをローカルストレージからデータベースに移行（セキュリティ強化）
-  const migrateFavorites = async (userId: string) => {
+  // お気に入りをローカルストレージからデータベースに移行
+  const migrateFavorites = async (userId: string): Promise<void> => {
     try {
       const localFavorites = localStorage.getItem('coffee-map-favorites')
       if (localFavorites) {
         const favoriteIds = JSON.parse(localFavorites) as number[]
         
         if (favoriteIds.length > 0) {
-          // バッチサイズを制限してスパム防止
           const batchSize = 50
           const batches = []
           
@@ -262,6 +226,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
               .upsert(favoritesData, { onConflict: 'user_id,shop_id' })
 
             if (error) {
+              // テーブルが存在しない場合は警告のみ
+              if (error.code === '42P01') {
+                console.warn('user_favorites table does not exist. Please run database setup.')
+                break
+              }
               console.error('お気に入り移行エラー:', error)
               break
             }
@@ -279,8 +248,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Googleサインイン（修正版 - Supabaseのデフォルトフローを使用）
-  const signInWithGoogle = async () => {
+  // Googleサインイン
+  const signInWithGoogle = async (): Promise<void> => {
     try {
       setLoading(true)
       
@@ -289,7 +258,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // redirectToを削除してSupabaseのデフォルトを使用
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -309,12 +278,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // 匿名サインイン（セキュリティ強化）
-  const signInAnonymously = async (nickname: string) => {
+  // 匿名サインイン
+  const signInAnonymously = async (nickname: string): Promise<void> => {
     try {
       setLoading(true)
       
-      // 入力値の検証とサニタイズ
       const sanitizedNickname = sanitizeInput(nickname)
       if (sanitizedNickname.length < 2 || sanitizedNickname.length > 20) {
         throw new Error('ニックネームは2文字以上20文字以下で入力してください')
@@ -322,13 +290,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       await logSecurityEvent('anonymous_login_attempt', { nickname: sanitizedNickname })
       
-      // Supabaseの匿名認証
       const { data, error } = await supabase.auth.signInAnonymously()
       
       if (error) throw error
       
       if (data.user) {
-        // ニックネームをメタデータに保存
         const { error: updateError } = await supabase.auth.updateUser({
           data: { 
             nickname: sanitizedNickname,
@@ -338,7 +304,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         })
 
         if (updateError) {
-          console.error('匿名ユーザーメタデータ更新エラー:', updateError)
+          console.warn('匿名ユーザーメタデータ更新エラー:', updateError)
         }
 
         const userData = convertSupabaseUser(data.user, true)
@@ -351,15 +317,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('匿名サインインエラー:', error)
-      await logSecurityEvent('anonymous_login_failed', { error: error instanceof Error ? error.message : 'Unknown error' })
+      await logSecurityEvent('anonymous_login_failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
       throw new Error('匿名サインインに失敗しました')
     } finally {
       setLoading(false)
     }
   }
 
-  // サインアウト（セキュリティ強化）
-  const signOut = async () => {
+  // サインアウト
+  const signOut = async (): Promise<void> => {
     try {
       setLoading(true)
       
@@ -368,9 +336,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signOut()
       
       if (error) throw error
-      
-      // セキュリティ関連データのクリア
-      clearSecurityData()
       
       setUser(null)
       setSession(null)
@@ -384,22 +349,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // セキュリティデータのクリア
-  const clearSecurityData = () => {
-    try {
-      // レート制限データをクリア
-      const keys = Object.keys(localStorage).filter(key => key.startsWith('rate_limit_'))
-      keys.forEach(key => localStorage.removeItem(key))
-    } catch (error) {
-      console.error('セキュリティデータクリアエラー:', error)
-    }
-  }
-
-  // プロファイル更新（セキュリティ強化）
-  const updateProfile = async (data: Partial<User>) => {
+  // プロファイル更新
+  const updateProfile = async (data: Partial<User>): Promise<void> => {
     if (!user) throw new Error('ユーザーがサインインしていません')
 
-    // レート制限チェック
     if (isRateLimited('profile_updates')) {
       throw new Error('プロフィール更新の制限に達しました。しばらく時間をおいてから再試行してください。')
     }
@@ -407,14 +360,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true)
 
-      // 入力値のサニタイズ
       const sanitizedData = {
         nickname: data.nickname ? sanitizeInput(data.nickname) : undefined,
         full_name: data.full_name ? sanitizeInput(data.full_name) : undefined,
         ...data
       }
 
-      // バリデーション
       if (sanitizedData.nickname && (sanitizedData.nickname.length < 2 || sanitizedData.nickname.length > 20)) {
         throw new Error('ニックネームは2文字以上20文字以下で入力してください')
       }
@@ -424,7 +375,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         fields: Object.keys(sanitizedData) 
       })
 
-      // Supabaseのユーザーメタデータを更新
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           nickname: sanitizedData.nickname,
@@ -434,15 +384,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (authError) throw authError
 
-      // ローカル状態を更新
       const updatedUser = { ...user, ...sanitizedData }
       setUser(updatedUser)
-
-      // データベースのプロフィールを更新
       await saveUserProfile(updatedUser)
-
-      // レート制限カウンターを増加
-      incrementRateLimit('profile_updates')
 
       await logSecurityEvent('profile_update_success', { user_id: user.id })
 
@@ -459,14 +403,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   // 匿名ユーザーから正式ユーザーへのアップグレード
-  const upgradeFromAnonymous = async () => {
+  const upgradeFromAnonymous = async (): Promise<void> => {
     if (!user || !user.is_anonymous) {
       throw new Error('匿名ユーザーではありません')
     }
 
     try {
       await logSecurityEvent('account_upgrade_attempt', { user_id: user.id })
-      // Googleサインインを実行
       await signInWithGoogle()
       await logSecurityEvent('account_upgrade_success', { user_id: user.id })
     } catch (error) {
@@ -480,7 +423,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   // ユーザー情報を再取得
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<void> => {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
@@ -524,9 +467,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // 認証状態の監視（セキュリティ強化）
+  // 認証状態の監視（エラーハンドリング強化）
   useEffect(() => {
-    // 現在のセッションを取得
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -534,6 +476,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error('セッション取得エラー:', error)
           await logSecurityEvent('session_error', { error: error.message })
+          setLoading(false)
           return
         }
 
@@ -548,7 +491,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setUser(userData)
           await saveUserProfile(userData)
           
-          // 初回ログイン時のお気に入り移行
           if (!isAnonymous) {
             await migrateFavorites(userData.id)
           }
@@ -567,10 +509,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     getInitialSession()
 
-    // 認証状態変更の監視
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id)
+      
       setSession(session)
       
       await logSecurityEvent('auth_state_change', { event })
@@ -584,13 +527,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(userData)
         await saveUserProfile(userData)
         
-        // サインイン時のお気に入り移行
         if (event === 'SIGNED_IN' && !isAnonymous) {
           await migrateFavorites(userData.id)
         }
       } else {
         setUser(null)
-        clearSecurityData()
       }
       
       setLoading(false)
