@@ -1,4 +1,4 @@
-// components/UserMenu.tsx - Image最適化版
+// components/UserMenu.tsx - ローディング状態修正版
 'use client'
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
@@ -72,20 +72,27 @@ export default function UserMenu() {
     setIsOpen(!isOpen)
   }
 
+  // 初期ローディング中の表示
+  if (loading) {
+    return (
+      <div className="relative">
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg">
+          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-gray-600 text-sm hidden sm:inline">読み込み中...</span>
+        </div>
+      </div>
+    )
+  }
+
   // 未認証の場合
   if (!user) {
     return (
       <div className="relative">
         <button
           onClick={openAuthModal}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          {loading ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            <span className="text-lg">👤</span>
-          )}
+          <span className="text-lg">👤</span>
           <span className="hidden sm:inline">サインイン</span>
         </button>
         

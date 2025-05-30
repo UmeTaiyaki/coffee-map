@@ -1,6 +1,6 @@
-// contexts/UserContext.tsx - エラー修正版
+// contexts/UserContext.tsx - 無限ローディング修正版
 'use client'
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
 
@@ -63,6 +63,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authInitialized, setAuthInitialized] = useState(false)
 
   // 権限チェック関数
   const isModeratorOrAdmin = (): boolean => {
@@ -272,9 +273,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Googleサインインエラー:', error)
+      setLoading(false) // エラー時はローディングを解除
       throw new Error('Googleサインインに失敗しました')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -467,19 +467,38 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // URLからauth状態をクリア
+  const clearAuthParams = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('auth_success') || url.searchParams.has('auth_error')) {
+        url.searchParams.delete('auth_success')
+        url.searchParams.delete('auth_error')
+        window.history.replaceState({}, document.title, url.toString())
+      }
+    }
+  }, [])
+
   // 認証状態の監視（エラーハンドリング強化）
   useEffect(() => {
+    let mounted = true
+
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        if (!mounted) return
+
         if (error) {
           console.error('セッション取得エラー:', error)
           await logSecurityEvent('session_error', { error: error.message })
           setLoading(false)
+          setAuthInitialized(true)
           return
         }
 
+        console.log('Initial session:', session ? 'found' : 'not found')
         setSession(session)
         
         if (session?.user) {
@@ -497,13 +516,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
           await logSecurityEvent('session_restored', { user_id: userData.id })
         }
+
+        // URL の auth パラメータをクリア
+        clearAuthParams()
+        
       } catch (error) {
         console.error('初期セッション取得エラー:', error)
         await logSecurityEvent('session_restore_failed', { 
           error: error instanceof Error ? error.message : 'Unknown error' 
         })
       } finally {
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+          setAuthInitialized(true)
+        }
       }
     }
 
@@ -513,6 +539,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id)
+      
+      if (!mounted) return
       
       setSession(session)
       
@@ -534,11 +562,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(null)
       }
       
-      setLoading(false)
+      if (authInitialized) {
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [clearAuthParams, authInitialized])
 
   const value: UserContextType = {
     user,

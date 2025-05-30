@@ -1,10 +1,10 @@
-// app/page.tsx - UserMenuとToastNotification追加版
+// app/page.tsx - 認証エラーハンドリング強化版
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { UserProvider } from '../contexts/UserContext'
 import UserMenu from '../components/UserMenu'
-import ToastNotification from '../components/ToastNotification'
+import ToastNotification, { showToast } from '../components/ToastNotification'
 
 // 地図コンポーネントを動的インポート（SSRを無効化）
 const UpdatedMap = dynamic(() => import('../components/UpdatedMap'), {
@@ -86,25 +86,55 @@ export default function Home() {
   const [showWelcome, setShowWelcome] = useState(false)
   
 
+  // URLパラメータから認証状態をチェック
+  const checkAuthStatus = useCallback(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const authSuccess = params.get('auth_success')
+    const authError = params.get('auth_error')
+
+    if (authSuccess) {
+      showToast('ログインが完了しました！', 'success', 4000)
+      // URLパラメータをクリア
+      const url = new URL(window.location.href)
+      url.searchParams.delete('auth_success')
+      window.history.replaceState({}, document.title, url.toString())
+    }
+
+    if (authError) {
+      const errorMessage = decodeURIComponent(authError)
+      showToast(`ログインに失敗しました: ${errorMessage}`, 'error', 6000)
+      // URLパラメータをクリア
+      const url = new URL(window.location.href)
+      url.searchParams.delete('auth_error')
+      window.history.replaceState({}, document.title, url.toString())
+    }
+  }, [])
+
   // クライアントサイドでのみレンダリング
   useEffect(() => {
     setIsClient(true)
+    
+    // 認証状態をチェック
+    checkAuthStatus()
     
     // 初回訪問時のウェルカムメッセージ
     const hasVisited = localStorage.getItem('coffee-map-visited')
     if (!hasVisited) {
       localStorage.setItem('coffee-map-visited', 'true')
       setShowWelcome(true)
-      // 5秒後に自動的に閉じる
+      // 7秒後に自動的に閉じる
       setTimeout(() => {
         setShowWelcome(false)
-      }, 5000)
+      }, 7000)
     }
-  }, [])
+  }, [checkAuthStatus])
 
   const handleShopAdded = useCallback(() => {
     setRefreshTrigger(prev => prev + 1)
     // 成功時のフィードバック
+    showToast('新しい店舗を登録しました！', 'success')
     const event = new CustomEvent('shopAdded', { detail: { timestamp: Date.now() } })
     window.dispatchEvent(event)
   }, [])
@@ -205,10 +235,11 @@ export default function Home() {
 
             {/* ウェルカムメッセージ */}
             {showWelcome && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-200 rounded-lg relative">
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-200 rounded-lg relative animate-slideIn">
                 <button
                   onClick={dismissWelcome}
-                  className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+                  className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-lg px-2 py-1 rounded-full hover:bg-white hover:bg-opacity-50 transition-colors"
+                  aria-label="ウェルカムメッセージを閉じる"
                 >
                   ✕
                 </button>
@@ -374,6 +405,17 @@ export default function Home() {
               }
             }
 
+            @keyframes slideIn {
+              from {
+                opacity: 0;
+                transform: translateX(-20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(0);
+              }
+            }
+
             @keyframes bounce {
               0%, 20%, 50%, 80%, 100% {
                 transform: translateY(0);
@@ -392,6 +434,10 @@ export default function Home() {
 
             .animate-pulse {
               animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+
+            .animate-slideIn {
+              animation: slideIn 0.5s ease-out;
             }
 
             @keyframes pulse {
@@ -457,6 +503,10 @@ export default function Home() {
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
               }
+              
+              .animate-slideIn {
+                animation: none;
+              }
             }
 
             /* フォーカス時のアクセシビリティ向上 */
@@ -485,7 +535,8 @@ export default function Home() {
               }
               
               .animate-bounce,
-              .animate-pulse {
+              .animate-pulse,
+              .animate-slideIn {
                 animation: none;
               }
             }
