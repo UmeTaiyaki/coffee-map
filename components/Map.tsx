@@ -606,7 +606,6 @@ export default function Map({ refreshTrigger }: MapProps) {
                   <div className="p-2 max-w-xs">
                     {/* 店舗画像 */}
                     {shop.main_image_url && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={shop.main_image_url}
                         alt={shop.name}

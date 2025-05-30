@@ -1,4 +1,4 @@
-// components/UpdatedAddShopForm.tsx - 未使用変数修正版
+// components/UpdatedAddShopForm.tsx - eslint-disable削除版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -487,7 +487,6 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
           {user ? (
             <div className="flex items-center gap-2">
               {user.avatar_url && (
-                /* eslint-disable-next-line @next/next/no-img-element */
                 <img 
                   src={user.avatar_url} 
                   alt={user.nickname} 

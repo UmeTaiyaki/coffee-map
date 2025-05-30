@@ -1,4 +1,4 @@
-// components/ShopSidePanel.tsx - img要素修正版
+// components/ShopSidePanel.tsx - eslint-disable削除版
 import React, { useEffect, useRef } from 'react'
 
 interface ShopWithDetails {
@@ -163,7 +163,6 @@ export default function ShopSidePanel({
         {/* メイン画像 */}
         {shop.main_image_url && (
           <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={shop.main_image_url}
               alt={shop.name}

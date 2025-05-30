@@ -1,4 +1,4 @@
-// components/SecurityMonitoringDashboard.tsx - セキュリティ監視ダッシュボード
+// components/SecurityMonitoringDashboard.tsx - セキュリティ監視ダッシュボード（ビルドエラー修正版）
 'use client'
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
@@ -9,7 +9,7 @@ interface SecurityEvent {
   event: string
   user_id: string
   timestamp: string
-  details: any
+  details: Record<string, unknown>
   severity: 'low' | 'medium' | 'high' | 'critical'
 }
 
@@ -249,7 +249,7 @@ function SecurityMonitoringDashboard() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`py-2 px-4 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -266,7 +266,7 @@ function SecurityMonitoringDashboard() {
       <div className="mb-6">
         <select
           value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value as any)}
+          onChange={(e) => setTimeRange(e.target.value as typeof timeRange)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         >
           <option value="1h">過去1時間</option>
@@ -650,7 +650,7 @@ export function useSecuritySettings() {
     imageContentFilter: true
   })
 
-  const updateSetting = useCallback((key: string, value: any) => {
+  const updateSetting = useCallback((key: string, value: unknown) => {
     setSettings(prev => ({ ...prev, [key]: value }))
     
     // 設定をサーバーに保存

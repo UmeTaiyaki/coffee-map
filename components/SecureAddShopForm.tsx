@@ -517,36 +517,6 @@ function SecureAddShopForm({ onShopAdded }: AddShopFormProps) {
     }
   }
 
-  // タグの追加（セキュリティチェック付き）
-  const addTag = useCallback((tag: string) => {
-    const sanitizedTag = sanitizeInput(tag, SECURITY_LIMITS.MAX_TAG_LENGTH).toLowerCase()
-    
-    if (sanitizedTag.length === 0) return
-    
-    if (formData.tags.length >= SECURITY_LIMITS.MAX_TAGS_PER_SHOP) {
-      setError(`タグは${SECURITY_LIMITS.MAX_TAGS_PER_SHOP}個まで設定できます`)
-      return
-    }
-    
-    if (!formData.tags.includes(sanitizedTag)) {
-      updateFormData('tags', [...formData.tags, sanitizedTag])
-    }
-  }, [formData.tags, updateFormData])
-
-  // タグの削除
-  const removeTag = useCallback((tagToRemove: string) => {
-    updateFormData('tags', formData.tags.filter(tag => tag !== tagToRemove))
-  }, [formData.tags, updateFormData])
-
-  // 決済方法のトグル
-  const togglePaymentMethod = useCallback((method: string) => {
-    updateFormData('payment_methods', 
-      formData.payment_methods.includes(method)
-        ? formData.payment_methods.filter(m => m !== method)
-        : [...formData.payment_methods, method]
-    )
-  }, [formData.payment_methods, updateFormData])
-
   // Geolonia スクリプト読み込み
   useEffect(() => {
     if (document.getElementById('geolonia-geocoder')) return

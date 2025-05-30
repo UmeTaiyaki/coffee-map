@@ -1,4 +1,4 @@
-// components/AddShopForm.tsx - 未使用変数削除版
+// components/AddShopForm.tsx - eslint-disable削除版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -718,7 +718,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             
             {imagePreview && (
               <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imagePreview}
                   alt="プレビュー"
