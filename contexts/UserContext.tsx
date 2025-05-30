@@ -1,4 +1,4 @@
-// contexts/UserContext.tsx - TypeScriptエラー修正版
+// contexts/UserContext.tsx - Google OAuth修正版
 'use client'
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
@@ -279,7 +279,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Googleサインイン（セキュリティ強化）
+  // Googleサインイン（修正版 - Supabaseのデフォルトフローを使用）
   const signInWithGoogle = async () => {
     try {
       setLoading(true)
@@ -289,7 +289,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          // redirectToを削除してSupabaseのデフォルトを使用
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
