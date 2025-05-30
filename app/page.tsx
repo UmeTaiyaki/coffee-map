@@ -1,8 +1,10 @@
-// app/page.tsx - 更新版
+// app/page.tsx - UserMenuとToastNotification追加版
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { UserProvider } from '../contexts/UserContext'
+import UserMenu from '../components/UserMenu'
+import ToastNotification from '../components/ToastNotification'
 
 // 地図コンポーネントを動的インポート（SSRを無効化）
 const UpdatedMap = dynamic(() => import('../components/UpdatedMap'), {
@@ -180,15 +182,24 @@ export default function Home() {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
           <div className="container mx-auto px-4 py-6 md:py-8 max-w-7xl">
             {/* ヘッダー */}
-            <header className="text-center mb-6 md:mb-8" style={animationStyles.slideDown}>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-2 md:mb-3">
-                ☕ Coffee Map
-              </h1>
-              <p className="text-gray-600 text-base md:text-lg px-4">
-                あなたの街のコーヒーショップを発見・共有しよう
-              </p>
-              <div className="text-sm text-gray-500 mt-2">
-                🆕 Phase 2: 認証機能・高度フィルター・ソート機能追加！
+            <header className="mb-6 md:mb-8" style={animationStyles.slideDown}>
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-2">
+                    ☕ Coffee Map
+                  </h1>
+                  <p className="text-gray-600 text-base md:text-lg">
+                    あなたの街のコーヒーショップを発見・共有しよう
+                  </p>
+                  <div className="text-sm text-gray-500 mt-2">
+                    🆕 Phase 2: 認証機能・高度フィルター・ソート機能追加！
+                  </div>
+                </div>
+                
+                {/* ユーザーメニュー */}
+                <div className="flex-shrink-0 ml-4">
+                  <UserMenu />
+                </div>
               </div>
             </header>
 
@@ -217,7 +228,7 @@ export default function Home() {
             )}
             
             {/* メインコンテンツ */}
-            <main>
+            <main id="main-content">
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
                 {/* 地図セクション */}
                 <section 
@@ -323,6 +334,9 @@ export default function Home() {
             >
               メインコンテンツにスキップ
             </a>
+
+            {/* トースト通知 */}
+            <ToastNotification />
           </div>
 
           {/* CSS-in-JS アニメーション定義 */}

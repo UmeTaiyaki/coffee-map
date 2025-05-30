@@ -1,4 +1,4 @@
-// components/UpdatedAddShopForm.tsx - eslint-disable削除版
+// components/UpdatedAddShopForm.tsx - UserMenu追加版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
 import { useAuthModal } from './AuthModal'
+import UserMenu from './UserMenu'
 
 // Geolonia APIの型定義を追加
 declare global {
@@ -415,6 +416,15 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
 
       setSuccess('✅ 店舗を登録しました！ありがとうございます。')
       
+      // 成功通知を送信
+      const successEvent = new CustomEvent('showToast', {
+        detail: {
+          message: '新しい店舗を登録しました！',
+          type: 'success'
+        }
+      })
+      window.dispatchEvent(successEvent)
+      
       // フォームリセット
       setName('')
       setAddress('')
@@ -454,6 +464,15 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
       console.error('登録エラー:', _error)
       const errorMessage = _error instanceof Error ? _error.message : '店舗の登録に失敗しました'
       setError(errorMessage)
+      
+      // エラー通知を送信
+      const errorEvent = new CustomEvent('showToast', {
+        detail: {
+          message: '店舗の登録に失敗しました',
+          type: 'error'
+        }
+      })
+      window.dispatchEvent(errorEvent)
     } finally {
       setIsSubmitting(false)
     }
@@ -482,29 +501,9 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">🏪 新しい店舗を追加</h2>
         
-        {/* ユーザー状態表示 */}
-        <div className="text-sm">
-          {user ? (
-            <div className="flex items-center gap-2">
-              {user.avatar_url && (
-                <img 
-                  src={user.avatar_url} 
-                  alt={user.nickname} 
-                  className="w-6 h-6 rounded-full"
-                />
-              )}
-              <span className="text-gray-600">
-                {user.is_anonymous ? '👤 匿名ユーザー' : `👤 ${user.nickname}`}
-              </span>
-            </div>
-          ) : (
-            <button
-              onClick={openAuthModal}
-              className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors"
-            >
-              サインインして投稿
-            </button>
-          )}
+        {/* ユーザーメニュー */}
+        <div className="flex-shrink-0">
+          <UserMenu />
         </div>
       </div>
       
