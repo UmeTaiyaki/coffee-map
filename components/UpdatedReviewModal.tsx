@@ -1,4 +1,4 @@
-// components/UpdatedReviewModal.tsx
+// components/UpdatedReviewModal.tsx - 未使用変数修正版
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
@@ -24,7 +24,7 @@ interface ReviewModalProps {
 export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }: ReviewModalProps) {
   // ユーザー認証
   const { user } = useUser()
-  const { isOpen: authModalOpen, openAuthModal, closeAuthModal, AuthModal } = useAuthModal()
+  const { isOpen: _authModalOpen, openAuthModal, closeAuthModal: _closeAuthModal, AuthModal } = useAuthModal()
 
   // 状態管理
   const [reviews, setReviews] = useState<Review[]>([])

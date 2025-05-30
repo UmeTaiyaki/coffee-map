@@ -1,5 +1,5 @@
-// components/UpdatedMap.tsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+// components/UpdatedMap.tsx - 未使用変数削除版
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -192,7 +192,7 @@ function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
 export default function UpdatedMap({ refreshTrigger }: MapProps) {
   // ユーザー認証
   const { user } = useUser()
-  const { isOpen: authModalOpen, openAuthModal, closeAuthModal, AuthModal } = useAuthModal()
+  const { isOpen: _authModalOpen, openAuthModal, closeAuthModal: _closeAuthModal, AuthModal } = useAuthModal()
 
   // 基本状態
   const [shops, setShops] = useState<ShopWithDetails[]>([])
@@ -228,7 +228,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
   }, [])
 
   // 営業時間チェック
-  const isOpenNow = (hours: ShopHours[]) => {
+  const isOpenNow = useCallback((hours: ShopHours[]) => {
     const currentDay = new Date().getDay()
     const currentTime = new Date().toTimeString().slice(0, 5)
     const todayHours = hours.find(h => h.day_of_week === currentDay)
@@ -237,22 +237,22 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
     if (!todayHours.open_time || !todayHours.close_time) return false
     
     return currentTime >= todayHours.open_time && currentTime <= todayHours.close_time
-  }
+  }, [])
 
   // 特定時間営業チェック
-  const isOpenAt = (hours: ShopHours[], day: number, time: string) => {
+  const isOpenAt = useCallback((hours: ShopHours[], day: number, time: string) => {
     const dayHours = hours.find(h => h.day_of_week === day)
     if (!dayHours || dayHours.is_closed) return false
     if (!dayHours.open_time || !dayHours.close_time) return false
     return time >= dayHours.open_time && time <= dayHours.close_time
-  }
+  }, [])
 
   // 平均評価計算
-  const calculateAverageRating = (reviews: Review[]) => {
+  const calculateAverageRating = useCallback((reviews: Review[]) => {
     if (!reviews || reviews.length === 0) return 0
     const sum = reviews.reduce((acc, review) => acc + review.rating, 0)
     return sum / reviews.length
-  }
+  }, [])
 
   // お気に入り機能（認証状態に応じてDB/ローカルストレージ切り替え）
   const toggleFavorite = useCallback(async (shopId: number) => {
@@ -365,6 +365,12 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
             supabase.from('reviews').select('*').eq('shop_id', shop.id).order('created_at', { ascending: false })
           ])
 
+          // 距離計算（currentLocationがnullでない場合のみ）
+          const distance = currentLocation ? calculateDistance(
+            currentLocation[0], currentLocation[1],
+            shop.latitude, shop.longitude
+          ) : undefined
+
           return {
             ...shop,
             images: imagesResult.data || [],
@@ -372,10 +378,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
             tags: tagsResult.data || [],
             reviews: reviewsResult.data || [],
             isFavorite: favorites.has(shop.id),
-            distance: currentLocation ? calculateDistance(
-              currentLocation[0], currentLocation[1],
-              shop.latitude, shop.longitude
-            ) : 0
+            distance
           }
         })
       )
@@ -431,7 +434,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
       const matchesMinRating = filters.minRating === 0 || 
         (shop.reviews && shop.reviews.length > 0 && calculateAverageRating(shop.reviews) >= filters.minRating)
 
-      // 距離フィルター
+      // 距離フィルター（currentLocationがnullでない場合のみ適用）
       const matchesDistance = !filters.distance.enabled || !currentLocation || 
         (shop.distance !== undefined && shop.distance <= filters.distance.maxKm)
 
@@ -453,7 +456,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
   // フィルター・ソート処理されたデータ
   const processedShops = useMemo(() => {
     const filtered = applyFilters(shops, filters, currentLocation)
-    const sorted = sortShops(filtered, sortState, currentLocation)
+    const sorted = sortShops(filtered, sortState, currentLocation || undefined)
     return sorted
   }, [shops, filters, sortState, currentLocation, applyFilters])
 
@@ -755,6 +758,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
                   <div className="p-2 max-w-xs">
                     {/* 店舗画像 */}
                     {shop.main_image_url && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={shop.main_image_url}
                         alt={shop.name}
@@ -885,4 +889,4 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
       `}</style>
     </div>
   )
-}   
+}

@@ -1,4 +1,4 @@
-// components/EnhancedImageUpload.tsx
+// components/EnhancedImageUpload.tsx - img要素修正版
 'use client'
 import { useState, useRef, useCallback } from 'react'
 import { uploadOptimizedImage, compressImage, type OptimizedImageUrls } from '../utils/imageOptimization'
@@ -162,6 +162,7 @@ export default function EnhancedImageUpload({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {currentImages.map((imageUrl, index) => (
               <div key={index} className="relative group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl}
                   alt={`アップロード済み画像 ${index + 1}`}
@@ -252,18 +253,22 @@ export function ImageUploadExample() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <div className="font-medium mb-1">サムネイル</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={urls.thumbnail} alt="thumbnail" className="w-full rounded" />
                 </div>
                 <div>
                   <div className="font-medium mb-1">中サイズ</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={urls.medium} alt="medium" className="w-full rounded" />
                 </div>
                 <div>
                   <div className="font-medium mb-1">大サイズ</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={urls.large} alt="large" className="w-full rounded" />
                 </div>
                 <div>
                   <div className="font-medium mb-1">オリジナル</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={urls.original} alt="original" className="w-full rounded" />
                 </div>
               </div>

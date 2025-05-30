@@ -74,8 +74,6 @@ const PRICE_RANGES = {
   4: '¥¥¥¥'
 } as const
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const
-
 // アイコン設定
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
@@ -169,7 +167,7 @@ export default function Map({ refreshTrigger }: MapProps) {
   }
 
   // 営業時間チェック
-  const isOpenNow = (hours: ShopHours[]) => {
+  const isOpenNow = useCallback((hours: ShopHours[]) => {
     const currentDay = getCurrentDay()
     const currentTime = getCurrentTime()
     const todayHours = hours.find(h => h.day_of_week === currentDay)
@@ -178,17 +176,7 @@ export default function Map({ refreshTrigger }: MapProps) {
     if (!todayHours.open_time || !todayHours.close_time) return false
     
     return currentTime >= todayHours.open_time && currentTime <= todayHours.close_time
-  }
-
-  // 営業時間を表示用にフォーマット
-  const formatHours = (hours: ShopHours[]) => {
-    const todayHours = hours.find(h => h.day_of_week === getCurrentDay())
-    if (!todayHours) return '営業時間不明'
-    if (todayHours.is_closed) return '本日定休日'
-    if (!todayHours.open_time || !todayHours.close_time) return '営業時間不明'
-    
-    return `${todayHours.open_time} - ${todayHours.close_time}`
-  }
+  }, [])
 
   // 距離計算
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -284,7 +272,7 @@ export default function Map({ refreshTrigger }: MapProps) {
       
       return matchesSearch && matchesCategory && matchesPrice && matchesFeatures && matchesFavorites
     })
-  }, [shops, searchQuery, categoryFilter, priceFilter, featureFilter, showFavoritesOnly, favorites])
+  }, [shops, searchQuery, categoryFilter, priceFilter, featureFilter, showFavoritesOnly, favorites, isOpenNow])
 
   // お気に入り機能
   const toggleFavorite = useCallback((shopId: number) => {
@@ -618,6 +606,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                   <div className="p-2 max-w-xs">
                     {/* 店舗画像 */}
                     {shop.main_image_url && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={shop.main_image_url}
                         alt={shop.name}
@@ -686,7 +675,7 @@ export default function Map({ refreshTrigger }: MapProps) {
                       </p>
                     )}
 
-                    {/* アクションボタン - 詳細ボタンのみでサイドパネルを表示 */}
+                    {/* アクションボタン */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -709,90 +698,20 @@ export default function Map({ refreshTrigger }: MapProps) {
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <div className="text-4xl mb-4">☕</div>
           <div className="text-lg text-gray-600 mb-4">
-            {searchQuery || categoryFilter !== 'all' || priceFilter !== 'all' || featureFilter.length > 0 || showFavoritesOnly
-              ? '条件に一致する店舗が見つかりません'
-              : 'まだ店舗が登録されていません'
-            }
+            条件に一致する店舗が見つかりません
           </div>
-          {(searchQuery || categoryFilter !== 'all' || priceFilter !== 'all' || featureFilter.length > 0 || showFavoritesOnly) && (
-            <button
-              onClick={() => {
-                setSearchQuery('')
-                setCategoryFilter('all')
-                setPriceFilter('all')
-                setFeatureFilter([])
-                setShowFavoritesOnly(false)
-              }}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              フィルターをリセット
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 店舗一覧（距離順） - サイドパネル表示時はオーバーレイ表示に変更 */}
-      {currentLocation && filteredShops.length > 0 && (
-        <div className={`bg-white p-4 rounded-lg shadow-sm ${
-          sidePanelOpen ? 'hidden md:block' : ''
-        }`}>
-          <h3 className="text-lg font-medium mb-3 text-gray-800">📍 現在地から近い店舗</h3>
-          <div className="space-y-3 max-h-60 overflow-y-auto">
-            {filteredShops
-              .filter(shop => shop.distance && shop.distance > 0)
-              .sort((a, b) => (a.distance || 0) - (b.distance || 0))
-              .slice(0, 10)
-              .map((shop) => (
-                <div 
-                  key={shop.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  onClick={() => showShopDetails(shop)}
-                >
-                  <div className="flex items-center gap-3">
-                    {shop.main_image_url && (
-                      <img
-                        src={shop.main_image_url}
-                        alt={shop.name}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={favorites.has(shop.id) ? 'text-red-500' : ''}>
-                          {favorites.has(shop.id) ? '❤️' : CATEGORIES[shop.category]}
-                        </span>
-                        <span className="font-medium text-gray-800">{shop.name}</span>
-                        <span className="text-orange-500 text-sm">
-                          {PRICE_RANGES[shop.price_range]}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 flex items-center gap-2">
-                        {shop.hours && (
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${
-                            isOpenNow(shop.hours) 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {isOpenNow(shop.hours) ? '営業中' : '営業時間外'}
-                          </span>
-                        )}
-                        {shop.has_wifi && <span className="text-blue-600">📶</span>}
-                        {shop.has_power && <span className="text-green-600">🔌</span>}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="text-blue-600 font-medium">
-                      {shop.distance?.toFixed(1)}km
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      徒歩{Math.round((shop.distance || 0) * 12)}分
-                    </div>
-                  </div>
-                </div>
-              ))}
-          </div>
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              setCategoryFilter('all')
+              setPriceFilter('all')
+              setFeatureFilter([])
+              setShowFavoritesOnly(false)
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            フィルターをリセット
+          </button>
         </div>
       )}
 
@@ -812,26 +731,6 @@ export default function Map({ refreshTrigger }: MapProps) {
         }
         .animate-spin {
           animation: spin 1s linear infinite;
-        }
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        
-        /* レスポンシブ対応 */
-        @media (max-width: 768px) {
-          .md\\:h-96 {
-            height: 24rem !important;
-          }
-        }
-        
-        /* サイドパネル表示時の地図調整 */
-        @media (min-width: 768px) {
-          .map-with-panel {
-            margin-right: 28rem;
-          }
         }
       `}</style>
     </div>

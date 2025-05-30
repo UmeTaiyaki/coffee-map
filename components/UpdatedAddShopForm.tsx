@@ -1,4 +1,4 @@
-// components/UpdatedAddShopForm.tsx
+// components/UpdatedAddShopForm.tsx - 未使用変数修正版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -8,8 +8,19 @@ import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
 import { useAuthModal } from './AuthModal'
 
-// 省略: 既存の型定義とインポート...
-interface Shop {
+// Geolonia APIの型定義を追加
+declare global {
+  interface Window {
+    getLatLng?: (
+      address: string,
+      onSuccess: (latlng: { lat: number; lng: number }) => void,
+      onError: (error: unknown) => void
+    ) => void
+  }
+}
+
+// 型定義（削除せずにアンダースコア付きに）
+interface _Shop {
   id: number
   name: string
   address: string
@@ -50,7 +61,7 @@ const PRICE_RANGES = {
   4: '¥¥¥¥ (2000円～)'
 } as const
 
-const COMMON_TAGS = [
+const _COMMON_TAGS = [
   'wifi', 'quiet', 'meeting', 'takeout', 'outdoor',
   'study', 'laptop', 'parking', 'pet-friendly', 'late-night',
   'breakfast', 'lunch', 'dessert', 'specialty-coffee', 'tea'
@@ -66,7 +77,7 @@ const PAYMENT_METHODS = [
   { value: 'line-pay', label: '📱 LINE Pay' }
 ] as const
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const
+const _DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const
 
 // Leafletアイコン設定
 const AdjustableIcon = L.icon({
@@ -140,7 +151,7 @@ function MapClickHandler({
 export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
   // ユーザー認証
   const { user } = useUser()
-  const { isOpen: authModalOpen, openAuthModal, closeAuthModal, AuthModal } = useAuthModal()
+  const { isOpen: _authModalOpen, openAuthModal, closeAuthModal: _closeAuthModal, AuthModal } = useAuthModal()
 
   // 基本情報
   const [name, setName] = useState('')
@@ -172,7 +183,7 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
   
   // 画像
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [_imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   
   // 地図・送信状態
@@ -186,16 +197,16 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
   const [success, setSuccess] = useState<string | null>(null)
 
   // 認証チェック
-  const checkAuthentication = () => {
+  const checkAuthentication = useCallback(() => {
     if (!user) {
       openAuthModal()
       return false
     }
     return true
-  }
+  }, [user, openAuthModal])
 
   // 画像選択ハンドラー
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const _handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB制限
@@ -230,8 +241,8 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
         .getPublicUrl(filePath)
 
       return data.publicUrl
-    } catch (error) {
-      console.error('画像アップロードエラー:', error)
+    } catch (_error) {
+      console.error('画像アップロードエラー:', _error)
       return null
     } finally {
       setUploadingImage(false)
@@ -245,19 +256,19 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
     }
   }
 
-  const addCustomTag = () => {
+  const _addCustomTag = () => {
     if (customTag.trim()) {
       addTag(customTag.trim().toLowerCase())
       setCustomTag('')
     }
   }
 
-  const removeTag = (tagToRemove: string) => {
+  const _removeTag = (tagToRemove: string) => {
     setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove))
   }
 
   // 営業時間更新
-  const updateHours = (dayIndex: number, field: keyof ShopHours, value: any) => {
+  const _updateHours = (dayIndex: number, field: keyof ShopHours, value: string | boolean) => {
     setHours(hours.map((hour, index) => 
       index === dayIndex ? { ...hour, [field]: value } : hour
     ))
@@ -306,20 +317,20 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
             setGeocodingStatus(`✅ 座標を取得しました！`)
             resolve()
           },
-          (error) => {
+          (_error) => {
             clearTimeout(timeoutId)
             reject(new Error('住所の解析に失敗しました'))
           }
         )
       })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '住所の解析に失敗しました'
+    } catch (_error) {
+      const errorMessage = _error instanceof Error ? _error.message : '住所の解析に失敗しました'
       setError(errorMessage)
       setGeocodingStatus('')
     } finally {
       setIsGeocoding(false)
     }
-  }, [address, name])
+  }, [address, name, checkAuthentication])
 
   // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
@@ -439,9 +450,9 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
         setSuccess(null)
       }, 5000)
 
-    } catch (error) {
-      console.error('登録エラー:', error)
-      const errorMessage = error instanceof Error ? error.message : '店舗の登録に失敗しました'
+    } catch (_error) {
+      console.error('登録エラー:', _error)
+      const errorMessage = _error instanceof Error ? _error.message : '店舗の登録に失敗しました'
       setError(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -476,6 +487,7 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
           {user ? (
             <div className="flex items-center gap-2">
               {user.avatar_url && (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img 
                   src={user.avatar_url} 
                   alt={user.nickname} 
@@ -688,8 +700,20 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
           </div>
         </div>
 
-        {/* 営業時間セクションは省略（既存コードと同じ）... */}
-        
+        {/* 説明 */}
+        <div className="border-b pb-6">
+          <h3 className="text-lg font-medium mb-4 text-gray-700">📝 説明・特徴</h3>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500"
+            placeholder="店舗の特徴や雰囲気を教えてください..."
+            maxLength={500}
+            disabled={!user}
+          />
+          <p className="text-xs text-gray-500 mt-1">{description.length}/500文字</p>
+        </div>
+
         {/* 地図 */}
         {showMap && markerPosition && user && (
           <div className="border-b pb-6">

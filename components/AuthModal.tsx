@@ -1,4 +1,4 @@
-// components/AuthModal.tsx
+// components/AuthModal.tsx - z-index修正版
 'use client'
 import React, { useState, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
@@ -29,6 +29,16 @@ export default function AuthModal({
       setNickname('')
       setShowAnonymousForm(false)
       setError(null)
+      // モーダル表示時にスクロールを無効化
+      document.body.style.overflow = 'hidden'
+    } else {
+      // モーダル非表示時にスクロールを復元
+      document.body.style.overflow = 'unset'
+    }
+
+    // クリーンアップ
+    return () => {
+      document.body.style.overflow = 'unset'
     }
   }, [isOpen])
 
@@ -83,11 +93,29 @@ export default function AuthModal({
     }
   }
 
+  // 背景クリックでモーダルを閉じる
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && !loading) {
+      onClose()
+    }
+  }
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ 
+        zIndex: 10000,
+        backdropFilter: 'blur(2px)'
+      }}
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl transform transition-all relative"
+        style={{ zIndex: 10001 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* ヘッダー */}
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -96,8 +124,9 @@ export default function AuthModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl p-1"
+            className="text-gray-400 hover:text-gray-600 text-xl p-1 rounded-full hover:bg-gray-100 transition-colors"
             disabled={loading}
+            aria-label="モーダルを閉じる"
           >
             ×
           </button>
@@ -118,7 +147,7 @@ export default function AuthModal({
               <button
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -152,7 +181,7 @@ export default function AuthModal({
                 <button
                   onClick={() => setShowAnonymousForm(true)}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
                 >
                   <span className="text-xl">👤</span>
                   <span className="font-medium text-gray-700">匿名でサインイン</span>
@@ -189,14 +218,14 @@ export default function AuthModal({
                   type="button"
                   onClick={() => setShowAnonymousForm(false)}
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 focus:ring-2 focus:ring-gray-500"
                 >
                   戻る
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !nickname.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center">
@@ -229,6 +258,7 @@ export default function AuthModal({
         </div>
       </div>
 
+      {/* CSS-in-JS でアニメーション定義 */}
       <style jsx>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -236,6 +266,46 @@ export default function AuthModal({
         }
         .animate-spin {
           animation: spin 1s linear infinite;
+        }
+        
+        /* アクセシビリティ向上 */
+        .focus\\:ring-2:focus {
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        
+        .focus\\:ring-gray-500:focus {
+          box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.5);
+        }
+        
+        /* モバイル対応 */
+        @media (max-width: 640px) {
+          .max-w-md {
+            max-width: calc(100vw - 2rem);
+            margin: 1rem;
+          }
+        }
+        
+        /* ハイコントラストモード対応 */
+        @media (prefers-contrast: high) {
+          .border-gray-300 {
+            border-color: #000;
+          }
+          
+          .text-gray-500 {
+            color: #000;
+          }
+        }
+        
+        /* 動きを減らす設定への対応 */
+        @media (prefers-reduced-motion: reduce) {
+          .transition-all,
+          .transition-colors {
+            transition: none;
+          }
+          
+          .animate-spin {
+            animation: none;
+          }
         }
       `}</style>
     </div>

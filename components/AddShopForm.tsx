@@ -1,3 +1,4 @@
+// components/AddShopForm.tsx - 未使用変数削除版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -11,27 +12,9 @@ declare global {
     getLatLng?: (
       address: string,
       onSuccess: (latlng: { lat: number; lng: number }) => void,
-      onError: (error: any) => void
+      onError: (error: unknown) => void
     ) => void
   }
-}
-
-// 型定義のインポート（実際のプロジェクトでは別ファイルから）
-interface Shop {
-  id: number
-  name: string
-  address: string
-  description?: string
-  latitude: number
-  longitude: number
-  phone?: string
-  website?: string
-  has_wifi?: boolean
-  has_power?: boolean
-  category: 'cafe' | 'roastery' | 'chain' | 'specialty' | 'bakery'
-  price_range: 1 | 2 | 3 | 4
-  main_image_url?: string
-  payment_methods?: string[]
 }
 
 interface ShopHours {
@@ -224,8 +207,8 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         .getPublicUrl(filePath)
 
       return data.publicUrl
-    } catch (error) {
-      console.error('画像アップロードエラー:', error)
+    } catch (_error) {
+      console.error('画像アップロードエラー:', _error)
       return null
     } finally {
       setUploadingImage(false)
@@ -251,7 +234,7 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
   }
 
   // 営業時間更新
-  const updateHours = (dayIndex: number, field: keyof ShopHours, value: any) => {
+  const updateHours = (dayIndex: number, field: keyof ShopHours, value: string | boolean) => {
     setHours(hours.map((hour, index) => 
       index === dayIndex ? { ...hour, [field]: value } : hour
     ))
@@ -266,7 +249,7 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
     )
   }
 
-  // 住所検索（修正版）
+  // 住所検索
   const handleGeocodeAndShowMap = useCallback(async () => {
     if (!name.trim() || !address.trim()) {
       setError('店舗名と住所を入力してください')
@@ -298,14 +281,14 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             setGeocodingStatus(`✅ 座標を取得しました！`)
             resolve()
           },
-          (error) => {
+          (_error) => {
             clearTimeout(timeoutId)
             reject(new Error('住所の解析に失敗しました'))
           }
         )
       })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '住所の解析に失敗しました'
+    } catch (_error) {
+      const errorMessage = _error instanceof Error ? _error.message : '住所の解析に失敗しました'
       setError(errorMessage)
       setGeocodingStatus('')
     } finally {
@@ -371,11 +354,9 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         ...hour
       }))
 
-      const { error: hoursError } = await supabase
+      await supabase
         .from('shop_hours')
         .insert(hoursData)
-
-      if (hoursError) console.warn('営業時間登録エラー:', hoursError)
 
       // タグ登録
       if (selectedTags.length > 0) {
@@ -384,11 +365,9 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
           tag
         }))
 
-        const { error: tagsError } = await supabase
+        await supabase
           .from('shop_tags')
           .insert(tagsData)
-
-        if (tagsError) console.warn('タグ登録エラー:', tagsError)
       }
 
       setSuccess('✅ 店舗を登録しました！')
@@ -423,9 +402,9 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         onShopAdded()
       }
 
-    } catch (error) {
-      console.error('登録エラー:', error)
-      const errorMessage = error instanceof Error ? error.message : '店舗の登録に失敗しました'
+    } catch (_error) {
+      console.error('登録エラー:', _error)
+      const errorMessage = _error instanceof Error ? _error.message : '店舗の登録に失敗しました'
       setError(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -739,6 +718,7 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             
             {imagePreview && (
               <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imagePreview}
                   alt="プレビュー"
