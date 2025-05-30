@@ -1,6 +1,7 @@
-// components/UserMenu.tsx - ユーザーメニューコンポーネント
+// components/UserMenu.tsx - Image最適化版
 'use client'
 import React, { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { useUser } from '../contexts/UserContext'
 import { useAuthModal } from './AuthModal'
 
@@ -110,10 +111,13 @@ export default function UserMenu() {
         {/* アバター */}
         <div className="flex-shrink-0">
           {user.avatar_url ? (
-            <img
+            <Image
               src={user.avatar_url}
               alt={user.nickname || 'ユーザーアバター'}
+              width={32}
+              height={32}
               className="w-8 h-8 rounded-full object-cover"
+              priority
             />
           ) : (
             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
@@ -160,9 +164,11 @@ export default function UserMenu() {
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 {user.avatar_url ? (
-                  <img
+                  <Image
                     src={user.avatar_url}
                     alt={user.nickname || 'ユーザーアバター'}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                 ) : (

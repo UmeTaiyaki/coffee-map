@@ -1,9 +1,10 @@
-// components/AddShopForm.tsx - eslint-disable削除版
+// components/AddShopForm.tsx - Image最適化版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 
 // Geolonia APIの型定義を追加
@@ -207,8 +208,8 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         .getPublicUrl(filePath)
 
       return data.publicUrl
-    } catch (_error) {
-      console.error('画像アップロードエラー:', _error)
+    } catch (uploadError) {
+      console.error('画像アップロードエラー:', uploadError)
       return null
     } finally {
       setUploadingImage(false)
@@ -281,14 +282,14 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             setGeocodingStatus(`✅ 座標を取得しました！`)
             resolve()
           },
-          (_error) => {
+          (geocodeError) => {
             clearTimeout(timeoutId)
             reject(new Error('住所の解析に失敗しました'))
           }
         )
       })
-    } catch (_error) {
-      const errorMessage = _error instanceof Error ? _error.message : '住所の解析に失敗しました'
+    } catch (geocodeError) {
+      const errorMessage = geocodeError instanceof Error ? geocodeError.message : '住所の解析に失敗しました'
       setError(errorMessage)
       setGeocodingStatus('')
     } finally {
@@ -402,9 +403,9 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         onShopAdded()
       }
 
-    } catch (_error) {
-      console.error('登録エラー:', _error)
-      const errorMessage = _error instanceof Error ? _error.message : '店舗の登録に失敗しました'
+    } catch (submitError) {
+      console.error('登録エラー:', submitError)
+      const errorMessage = submitError instanceof Error ? submitError.message : '店舗の登録に失敗しました'
       setError(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -718,9 +719,11 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             
             {imagePreview && (
               <div className="relative">
-                <img
+                <Image
                   src={imagePreview}
                   alt="プレビュー"
+                  width={384}
+                  height={192}
                   className="w-full max-w-md h-48 object-cover rounded-lg"
                 />
                 <button

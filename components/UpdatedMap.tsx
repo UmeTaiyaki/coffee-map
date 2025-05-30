@@ -1,8 +1,9 @@
-// components/UpdatedMap.tsx - eslint-disable削除版
+// components/UpdatedMap.tsx - Image最適化版
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
 import ShopSidePanel from './ShopSidePanel'
@@ -758,9 +759,11 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
                   <div className="p-2 max-w-xs">
                     {/* 店舗画像 */}
                     {shop.main_image_url && (
-                      <img
+                      <Image
                         src={shop.main_image_url}
                         alt={shop.name}
+                        width={200}
+                        height={96}
                         className="w-full h-24 object-cover rounded-lg mb-2"
                       />
                     )}

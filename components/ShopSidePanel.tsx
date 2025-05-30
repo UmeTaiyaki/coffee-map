@@ -1,5 +1,6 @@
-// components/ShopSidePanel.tsx - eslint-disable削除版
+// components/ShopSidePanel.tsx - Image最適化版
 import React, { useEffect, useRef } from 'react'
+import Image from 'next/image'
 
 interface ShopWithDetails {
   id: number
@@ -163,11 +164,13 @@ export default function ShopSidePanel({
         {/* メイン画像 */}
         {shop.main_image_url && (
           <div className="relative">
-            <img
+            <Image
               src={shop.main_image_url}
               alt={shop.name}
+              width={400}
+              height={192}
               className="w-full h-48 object-cover"
-              loading="lazy"
+              priority
             />
             {onToggleFavorite && (
               <button

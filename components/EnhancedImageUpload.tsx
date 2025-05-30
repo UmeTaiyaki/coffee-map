@@ -1,6 +1,7 @@
-// components/EnhancedImageUpload.tsx - eslint-disable削除版
+// components/EnhancedImageUpload.tsx - Image最適化版
 'use client'
 import { useState, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { uploadOptimizedImage, compressImage, type OptimizedImageUrls } from '../utils/imageOptimization'
 
 interface EnhancedImageUploadProps {
@@ -162,9 +163,11 @@ export default function EnhancedImageUpload({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {currentImages.map((imageUrl, index) => (
               <div key={index} className="relative group">
-                <img
+                <Image
                   src={imageUrl}
                   alt={`アップロード済み画像 ${index + 1}`}
+                  width={200}
+                  height={128}
                   className="w-full h-32 object-cover rounded-lg border"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
@@ -252,19 +255,43 @@ export function ImageUploadExample() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div>
                   <div className="font-medium mb-1">サムネイル</div>
-                  <img src={urls.thumbnail} alt="thumbnail" className="w-full rounded" />
+                  <Image 
+                    src={urls.thumbnail} 
+                    alt="thumbnail" 
+                    width={100}
+                    height={100}
+                    className="w-full rounded" 
+                  />
                 </div>
                 <div>
                   <div className="font-medium mb-1">中サイズ</div>
-                  <img src={urls.medium} alt="medium" className="w-full rounded" />
+                  <Image 
+                    src={urls.medium} 
+                    alt="medium" 
+                    width={100}
+                    height={100}
+                    className="w-full rounded" 
+                  />
                 </div>
                 <div>
                   <div className="font-medium mb-1">大サイズ</div>
-                  <img src={urls.large} alt="large" className="w-full rounded" />
+                  <Image 
+                    src={urls.large} 
+                    alt="large" 
+                    width={100}
+                    height={100}
+                    className="w-full rounded" 
+                  />
                 </div>
                 <div>
                   <div className="font-medium mb-1">オリジナル</div>
-                  <img src={urls.original} alt="original" className="w-full rounded" />
+                  <Image 
+                    src={urls.original} 
+                    alt="original" 
+                    width={100}
+                    height={100}
+                    className="w-full rounded" 
+                  />
                 </div>
               </div>
             </div>
