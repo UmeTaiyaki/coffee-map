@@ -1,4 +1,8 @@
-// types/shop.ts
+// types/index.ts
+export * from './filters'
+export * from './shop'
+
+// Shop関連の型定義
 export interface Shop {
   id: number
   name: string
@@ -60,21 +64,3 @@ export interface ShopWithDetails extends Shop {
   distance?: number
   isFavorite?: boolean
 }
-
-// 定数
-export const CATEGORIES = {
-  cafe: '☕ カフェ',
-  roastery: '🔥 焙煎所',
-  chain: '🏪 チェーン店',
-  specialty: '✨ スペシャルティ',
-  bakery: '🥐 ベーカリーカフェ'
-} as const
-
-export const PRICE_RANGES = {
-  1: '¥',
-  2: '¥¥',
-  3: '¥¥¥',
-  4: '¥¥¥¥'
-} as const
-
-export const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const

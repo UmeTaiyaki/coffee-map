@@ -1,10 +1,9 @@
-// contexts/UserContext.tsx - 認証処理最適化版
 'use client'
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
 
-// ユーザー型定義
+// 型定義
 export interface User {
   id: string
   email?: string
@@ -19,7 +18,6 @@ export interface User {
   security_level?: number
 }
 
-// セキュリティコンテキスト型定義
 interface SecurityContext {
   canCreateShop: boolean
   canEditShop: (shopCreatedBy?: string) => boolean
@@ -31,7 +29,6 @@ interface SecurityContext {
   canAccessAdminFeatures: boolean
 }
 
-// コンテキスト型定義
 interface UserContextType {
   user: User | null
   session: Session | null
@@ -47,169 +44,190 @@ interface UserContextType {
   logSecurityEvent: (event: string, details?: any) => Promise<void>
 }
 
+// 定数
+const RATE_LIMITS = {
+  SHOP_CREATION: 5,
+  REVIEW_CREATION: 20,
+  PROFILE_UPDATES: 10
+} as const
+
+const NICKNAME_MIN_LENGTH = 2
+const NICKNAME_MAX_LENGTH = 20
+const INPUT_MAX_LENGTH = 100
+
 // コンテキスト作成
 const UserContext = createContext<UserContextType | undefined>(undefined)
 
-// 入力値のサニタイズ
+// ユーティリティ関数
 const sanitizeInput = (input: string): string => {
   return input
     .trim()
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/[<>]/g, '')
-    .substring(0, 100)
+    .substring(0, INPUT_MAX_LENGTH)
 }
 
+const validateNickname = (nickname: string): string | null => {
+  const sanitized = sanitizeInput(nickname)
+  if (sanitized.length < NICKNAME_MIN_LENGTH || sanitized.length > NICKNAME_MAX_LENGTH) {
+    return `ニックネームは${NICKNAME_MIN_LENGTH}文字以上${NICKNAME_MAX_LENGTH}文字以下で入力してください`
+  }
+  return null
+}
+
+// Provider コンポーネント
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [authInitialized, setAuthInitialized] = useState(false)
 
-  // 権限チェック関数
-  const isModeratorOrAdmin = (): boolean => {
+  // 権限チェック
+  const isModeratorOrAdmin = useCallback((): boolean => {
     return !!user && (user.role === 'moderator' || user.role === 'admin')
-  }
+  }, [user])
 
-  // レート制限チェック（簡素化）
-  const isRateLimited = useCallback((action: string): boolean => {
-    if (!user) return true
-    
-    const key = `rate_limit_${action}_${user.id}`
-    const stored = localStorage.getItem(key)
-    
-    if (!stored) {
-      localStorage.setItem(key, JSON.stringify({ count: 1, timestamp: Date.now() }))
-      return false
-    }
+  // レート制限チェック
+  const checkRateLimit = useCallback((action: string): boolean => {
+    if (!user) return false
     
     try {
+      const key = `rate_limit_${action}_${user.id}`
+      const stored = localStorage.getItem(key)
+      
+      if (!stored) {
+        localStorage.setItem(key, JSON.stringify({ count: 1, timestamp: Date.now() }))
+        return true
+      }
+      
       const data = JSON.parse(stored)
-      const now = Date.now()
-      const hourAgo = now - (60 * 60 * 1000)
+      const hourAgo = Date.now() - (60 * 60 * 1000)
       
       if (data.timestamp < hourAgo) {
-        localStorage.setItem(key, JSON.stringify({ count: 1, timestamp: now }))
-        return false
+        localStorage.setItem(key, JSON.stringify({ count: 1, timestamp: Date.now() }))
+        return true
       }
       
-      const limits: Record<string, number> = {
-        'SHOP_CREATION': 5,
-        'REVIEW_CREATION': 20,
-        'PROFILE_UPDATES': 10
-      }
+      const limit = RATE_LIMITS[action.toUpperCase() as keyof typeof RATE_LIMITS] || 10
+      if (data.count >= limit) return false
       
-      const limit = limits[action.toUpperCase()] || 10
-      if (data.count >= limit) return true
+      data.count++
+      localStorage.setItem(key, JSON.stringify(data))
+      return true
       
-      localStorage.setItem(key, JSON.stringify({ count: data.count + 1, timestamp: data.timestamp }))
-      return false
-    } catch {
-      return false
+    } catch (error) {
+      console.error('Rate limit check error:', error)
+      return true
     }
   }, [user])
 
-  // セキュリティコンテキストの計算
+  // セキュリティコンテキスト
   const security: SecurityContext = {
-    canCreateShop: !!user && !isRateLimited('shop_creation'),
+    canCreateShop: !!user && checkRateLimit('shop_creation'),
     canEditShop: (shopCreatedBy?: string) => 
       !!user && (user.id === shopCreatedBy || isModeratorOrAdmin()),
     canDeleteShop: (shopCreatedBy?: string) => 
       !!user && (user.id === shopCreatedBy || isModeratorOrAdmin()),
-    canPostReview: !!user && !isRateLimited('review_creation'),
+    canPostReview: !!user && checkRateLimit('review_creation'),
     canEditReview: (reviewUserId?: string) => 
       !!user && user.id === reviewUserId,
     canDeleteReview: (reviewUserId?: string) => 
       !!user && (user.id === reviewUserId || isModeratorOrAdmin()),
-    canModerateContent: !!user && isModeratorOrAdmin(),
+    canModerateContent: isModeratorOrAdmin(),
     canAccessAdminFeatures: !!user && user.role === 'admin'
   }
 
-  // Supabaseユーザーを内部User型に変換（軽量化）
+  // Supabaseユーザーを内部User型に変換
   const convertSupabaseUser = useCallback((supabaseUser: SupabaseUser, isAnonymous = false): User => {
-    const userData = supabaseUser.user_metadata || {}
+    const metadata = supabaseUser.user_metadata || {}
     
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
-      nickname: userData.nickname || userData.name || userData.full_name?.split(' ')[0] || '匿名ユーザー',
-      avatar_url: userData.avatar_url || userData.picture,
-      full_name: userData.full_name || userData.name,
+      nickname: metadata.nickname || metadata.name || metadata.full_name?.split(' ')[0] || '匿名ユーザー',
+      avatar_url: metadata.avatar_url || metadata.picture,
+      full_name: metadata.full_name || metadata.name,
       is_anonymous: isAnonymous,
       created_at: supabaseUser.created_at,
       last_active: new Date().toISOString(),
-      role: userData.role || 'user',
+      role: metadata.role || 'user',
       is_verified: !isAnonymous && !!supabaseUser.email_confirmed_at,
-      security_level: isAnonymous ? 1 : (userData.role === 'admin' ? 3 : 2)
+      security_level: isAnonymous ? 1 : (metadata.role === 'admin' ? 3 : 2)
     }
   }, [])
 
-  // セキュリティイベントのログ（非同期処理を避ける）
+  // セキュリティイベントログ
   const logSecurityEvent = useCallback(async (event: string, details?: any): Promise<void> => {
-    // 開発環境のみログ出力
     if (process.env.NODE_ENV === 'development') {
-      console.log('Security Event:', event, details)
+      console.log('Security Event:', {
+        event,
+        user_id: user?.id || 'anonymous',
+        timestamp: new Date().toISOString(),
+        details
+      })
+    }
+  }, [user])
+
+  // ユーザープロファイル保存
+  const saveUserProfile = useCallback(async (userData: User): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .upsert({
+          id: userData.id,
+          email: userData.email,
+          nickname: userData.nickname,
+          avatar_url: userData.avatar_url,
+          full_name: userData.full_name,
+          is_anonymous: userData.is_anonymous,
+          last_active: new Date().toISOString(),
+          user_metadata: {
+            role: userData.role,
+            is_verified: userData.is_verified,
+            security_level: userData.security_level
+          }
+        }, {
+          onConflict: 'id'
+        })
+
+      if (error && error.code !== '42P01') {
+        throw error
+      }
+    } catch (error) {
+      console.warn('ユーザープロファイル保存エラー:', error)
     }
   }, [])
 
-  // ユーザープロファイルをデータベースに保存（非同期で実行）
-  const saveUserProfile = useCallback(async (userData: User): Promise<void> => {
-    // バックグラウンドで実行
-    setTimeout(async () => {
-      try {
-        const { error } = await supabase
-          .from('users')
-          .upsert({
-            id: userData.id,
-            email: userData.email,
-            nickname: sanitizeInput(userData.nickname || ''),
-            avatar_url: userData.avatar_url,
-            full_name: sanitizeInput(userData.full_name || ''),
-            is_anonymous: userData.is_anonymous,
-            last_active: new Date().toISOString()
-          }, {
-            onConflict: 'id'
-          })
-
-        if (error && error.code !== '42P01') {
-          console.warn('User profile save error:', error)
-        }
-      } catch (error) {
-        console.warn('User profile save error:', error)
-      }
-    }, 100)
-  }, [])
-
-  // お気に入りをローカルストレージからデータベースに移行（バックグラウンド）
+  // お気に入り移行
   const migrateFavorites = useCallback(async (userId: string): Promise<void> => {
-    setTimeout(async () => {
-      try {
-        const localFavorites = localStorage.getItem('coffee-map-favorites')
-        if (!localFavorites) return
+    try {
+      const localFavorites = localStorage.getItem('coffee-map-favorites')
+      if (!localFavorites) return
 
-        const favoriteIds = JSON.parse(localFavorites) as number[]
-        if (favoriteIds.length === 0) return
+      const favoriteIds = JSON.parse(localFavorites) as number[]
+      if (favoriteIds.length === 0) return
 
-        // バッチ処理で移行
-        const favoritesData = favoriteIds.map(shopId => ({
-          user_id: userId,
-          shop_id: shopId
-        }))
+      const favoritesData = favoriteIds.map(shopId => ({
+        user_id: userId,
+        shop_id: shopId
+      }))
 
-        await supabase
-          .from('user_favorites')
-          .upsert(favoritesData, { onConflict: 'user_id,shop_id' })
+      const { error } = await supabase
+        .from('user_favorites')
+        .upsert(favoritesData, { onConflict: 'user_id,shop_id' })
 
+      if (!error || error.code === '42P01') {
         localStorage.removeItem('coffee-map-favorites')
-      } catch (error) {
-        console.warn('Favorites migration error:', error)
       }
-    }, 1000)
+    } catch (error) {
+      console.warn('お気に入り移行エラー:', error)
+    }
   }, [])
 
   // Googleサインイン
-  const signInWithGoogle = async (): Promise<void> => {
+  const signInWithGoogle = useCallback(async (): Promise<void> => {
     try {
       setLoading(true)
+      await logSecurityEvent('login_attempt', { method: 'google' })
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -222,23 +240,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
       })
 
-      if (error) throw error
+      if (error) {
+        await logSecurityEvent('login_failed', { method: 'google', error: error.message })
+        throw error
+      }
     } catch (error) {
-      console.error('Googleサインインエラー:', error)
       setLoading(false)
       throw new Error('Googleサインインに失敗しました')
     }
-  }
+  }, [logSecurityEvent])
 
   // 匿名サインイン
-  const signInAnonymously = async (nickname: string): Promise<void> => {
+  const signInAnonymously = useCallback(async (nickname: string): Promise<void> => {
     try {
       setLoading(true)
       
+      const validationError = validateNickname(nickname)
+      if (validationError) throw new Error(validationError)
+
       const sanitizedNickname = sanitizeInput(nickname)
-      if (sanitizedNickname.length < 2 || sanitizedNickname.length > 20) {
-        throw new Error('ニックネームは2文字以上20文字以下で入力してください')
-      }
+      await logSecurityEvent('anonymous_login_attempt', { nickname: sanitizedNickname })
       
       const { data, error } = await supabase.auth.signInAnonymously()
       
@@ -248,7 +269,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         await supabase.auth.updateUser({
           data: { 
             nickname: sanitizedNickname,
-            is_anonymous: true
+            is_anonymous: true,
+            security_level: 1
           }
         })
 
@@ -256,78 +278,107 @@ export function UserProvider({ children }: { children: ReactNode }) {
         userData.nickname = sanitizedNickname
         
         setUser(userData)
-        setLoading(false)
-        
-        // バックグラウンドで処理
-        saveUserProfile(userData)
-        migrateFavorites(userData.id)
+        await saveUserProfile(userData)
+        await migrateFavorites(userData.id)
+        await logSecurityEvent('anonymous_login_success', { user_id: userData.id })
       }
     } catch (error) {
-      console.error('匿名サインインエラー:', error)
-      throw new Error('匿名サインインに失敗しました')
+      await logSecurityEvent('anonymous_login_failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
+      throw new Error(error instanceof Error ? error.message : '匿名サインインに失敗しました')
     } finally {
       setLoading(false)
     }
-  }
+  }, [convertSupabaseUser, saveUserProfile, migrateFavorites, logSecurityEvent])
 
-  // サインアウト（修正版）
-  const signOut = async (): Promise<void> => {
+  // サインアウト
+  const signOut = useCallback(async (): Promise<void> => {
     try {
-      // すぐにユーザー情報をクリア
+      setLoading(true)
+      await logSecurityEvent('logout_attempt', { user_id: user?.id })
+      
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
       setUser(null)
       setSession(null)
-      
-      // バックグラウンドでサインアウト処理
-      await supabase.auth.signOut()
+      await logSecurityEvent('logout_success')
     } catch (error) {
-      console.error('サインアウトエラー:', error)
-      // エラーでも状態はクリア済みなので問題なし
+      throw new Error('サインアウトに失敗しました')
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [user, logSecurityEvent])
 
   // プロファイル更新
-  const updateProfile = async (data: Partial<User>): Promise<void> => {
+  const updateProfile = useCallback(async (data: Partial<User>): Promise<void> => {
     if (!user) throw new Error('ユーザーがサインインしていません')
 
+    if (!checkRateLimit('profile_updates')) {
+      throw new Error('プロフィール更新の制限に達しました。しばらく時間をおいてから再試行してください。')
+    }
+
     try {
-      const sanitizedData = {
-        nickname: data.nickname ? sanitizeInput(data.nickname) : undefined,
-        full_name: data.full_name ? sanitizeInput(data.full_name) : undefined,
-        ...data
+      setLoading(true)
+
+      let updatedData: any = {}
+      
+      if (data.nickname) {
+        const validationError = validateNickname(data.nickname)
+        if (validationError) throw new Error(validationError)
+        updatedData.nickname = sanitizeInput(data.nickname)
+      }
+      
+      if (data.full_name) {
+        updatedData.full_name = sanitizeInput(data.full_name)
       }
 
-      await supabase.auth.updateUser({
-        data: {
-          nickname: sanitizedData.nickname,
-          full_name: sanitizedData.full_name
-        }
+      await logSecurityEvent('profile_update_attempt', { 
+        user_id: user.id, 
+        fields: Object.keys(updatedData) 
       })
 
-      const updatedUser = { ...user, ...sanitizedData }
-      setUser(updatedUser)
-      saveUserProfile(updatedUser)
-    } catch (error) {
-      console.error('プロファイル更新エラー:', error)
-      throw new Error('プロフィールの更新に失敗しました')
-    }
-  }
+      const { error } = await supabase.auth.updateUser({ data: updatedData })
+      if (error) throw error
 
-  // 匿名ユーザーから正式ユーザーへのアップグレード
-  const upgradeFromAnonymous = async (): Promise<void> => {
+      const updatedUser = { ...user, ...updatedData }
+      setUser(updatedUser)
+      await saveUserProfile(updatedUser)
+      await logSecurityEvent('profile_update_success', { user_id: user.id })
+
+    } catch (error) {
+      await logSecurityEvent('profile_update_failed', { 
+        user_id: user.id, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
+      throw new Error(error instanceof Error ? error.message : 'プロフィールの更新に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }, [user, checkRateLimit, saveUserProfile, logSecurityEvent])
+
+  // 匿名ユーザーのアップグレード
+  const upgradeFromAnonymous = useCallback(async (): Promise<void> => {
     if (!user || !user.is_anonymous) {
       throw new Error('匿名ユーザーではありません')
     }
 
     try {
+      await logSecurityEvent('account_upgrade_attempt', { user_id: user.id })
       await signInWithGoogle()
+      await logSecurityEvent('account_upgrade_success', { user_id: user.id })
     } catch (error) {
-      console.error('アカウントアップグレードエラー:', error)
+      await logSecurityEvent('account_upgrade_failed', { 
+        user_id: user.id, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
       throw new Error('アカウントのアップグレードに失敗しました')
     }
-  }
+  }, [user, signInWithGoogle, logSecurityEvent])
 
-  // ユーザー情報を再取得
-  const refreshUser = async (): Promise<void> => {
+  // ユーザー情報更新
+  const refreshUser = useCallback(async (): Promise<void> => {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
@@ -338,15 +389,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
                           
         const userData = convertSupabaseUser(currentUser, isAnonymous)
         setUser(userData)
-        saveUserProfile(userData)
+        await saveUserProfile(userData)
       }
     } catch (error) {
       console.error('ユーザー情報更新エラー:', error)
     }
-  }
+  }, [convertSupabaseUser, saveUserProfile])
 
-  // ユーザーアクションの検証
-  const validateUserAction = (action: string, resourceOwner?: string): boolean => {
+  // アクション検証
+  const validateUserAction = useCallback((action: string, resourceOwner?: string): boolean => {
     if (!user) return false
 
     switch (action) {
@@ -369,71 +420,80 @@ export function UserProvider({ children }: { children: ReactNode }) {
       default:
         return false
     }
-  }
+  }, [user, security])
 
-  // 認証状態の監視（最適化版）
+  // 認証状態の初期化
   useEffect(() => {
     let mounted = true
 
-    const initAuth = async () => {
+    const initializeAuth = async () => {
       try {
-        // セッション取得
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabase.auth.getSession()
         
         if (!mounted) return
+
+        if (error) {
+          console.error('セッション取得エラー:', error)
+          setLoading(false)
+          return
+        }
 
         setSession(session)
         
         if (session?.user) {
-          const isAnonymous = session.user.is_anonymous || false
+          const isAnonymous = session.user.is_anonymous || 
+                            session.user.user_metadata?.is_anonymous || 
+                            false
+                            
           const userData = convertSupabaseUser(session.user, isAnonymous)
           setUser(userData)
+          await saveUserProfile(userData)
           
-          // バックグラウンド処理
           if (!isAnonymous) {
-            migrateFavorites(userData.id)
+            await migrateFavorites(userData.id)
           }
-          saveUserProfile(userData)
         }
+        
       } catch (error) {
-        console.error('Auth initialization error:', error)
+        console.error('初期化エラー:', error)
       } finally {
         if (mounted) {
           setLoading(false)
-          setAuthInitialized(true)
         }
       }
     }
 
-    initAuth()
+    initializeAuth()
 
-    // 認証状態の変更を監視
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted || !authInitialized) return
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+      
+      setSession(session)
+      
+      if (session?.user) {
+        const isAnonymous = session.user.is_anonymous || 
+                          session.user.user_metadata?.is_anonymous || 
+                          false
+                          
+        const userData = convertSupabaseUser(session.user, isAnonymous)
+        setUser(userData)
+        await saveUserProfile(userData)
         
-        setSession(session)
-        
-        if (session?.user) {
-          const isAnonymous = session.user.is_anonymous || false
-          const userData = convertSupabaseUser(session.user, isAnonymous)
-          setUser(userData)
-          
-          if (event === 'SIGNED_IN' && !isAnonymous) {
-            migrateFavorites(userData.id)
-          }
-          saveUserProfile(userData)
-        } else {
-          setUser(null)
+        if (event === 'SIGNED_IN' && !isAnonymous) {
+          await migrateFavorites(userData.id)
         }
+      } else {
+        setUser(null)
       }
-    )
+      
+      setLoading(false)
+    })
 
     return () => {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [authInitialized, convertSupabaseUser, migrateFavorites, saveUserProfile])
+  }, [convertSupabaseUser, saveUserProfile, migrateFavorites])
 
   const value: UserContextType = {
     user,
@@ -466,7 +526,7 @@ export function useUser() {
   return context
 }
 
-// HOC（変更なし）
+// HOC: 認証必須
 export function withAuth<P extends object>(Component: React.ComponentType<P>) {
   return function AuthenticatedComponent(props: P) {
     const { user, loading } = useUser()
@@ -497,6 +557,7 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
   }
 }
 
+// HOC: 権限チェック
 export function withPermission<P extends object>(
   Component: React.ComponentType<P>,
   requiredAction: string,

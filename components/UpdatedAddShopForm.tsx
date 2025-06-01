@@ -1,4 +1,3 @@
-// components/UpdatedAddShopForm.tsx - UserMenu追加版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -8,41 +7,28 @@ import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
 import { useAuthModal } from './AuthModal'
 import UserMenu from './UserMenu'
+import { showToast } from './ToastNotification'
 
-// Geolonia APIの型定義を追加
-declare global {
-  interface Window {
-    getLatLng?: (
-      address: string,
-      onSuccess: (latlng: { lat: number; lng: number }) => void,
-      onError: (error: unknown) => void
-    ) => void
-  }
-}
-
-// 型定義（削除せずにアンダースコア付きに）
-interface _Shop {
-  id: number
+// 型定義
+interface ShopFormData {
   name: string
   address: string
-  description?: string
-  latitude: number
-  longitude: number
-  phone?: string
-  website?: string
-  has_wifi?: boolean
-  has_power?: boolean
+  description: string
   category: 'cafe' | 'roastery' | 'chain' | 'specialty' | 'bakery'
-  price_range: 1 | 2 | 3 | 4
-  main_image_url?: string
-  payment_methods?: string[]
-  created_by?: string
+  priceRange: 1 | 2 | 3 | 4
+  phone: string
+  website: string
+  hasWifi: boolean
+  hasPower: boolean
+  paymentMethods: string[]
+  tags: string[]
+  hours: ShopHours[]
 }
 
 interface ShopHours {
   day_of_week: number
-  open_time?: string
-  close_time?: string
+  open_time: string
+  close_time: string
   is_closed: boolean
 }
 
@@ -62,12 +48,6 @@ const PRICE_RANGES = {
   4: '¥¥¥¥ (2000円～)'
 } as const
 
-const _COMMON_TAGS = [
-  'wifi', 'quiet', 'meeting', 'takeout', 'outdoor',
-  'study', 'laptop', 'parking', 'pet-friendly', 'late-night',
-  'breakfast', 'lunch', 'dessert', 'specialty-coffee', 'tea'
-] as const
-
 const PAYMENT_METHODS = [
   { value: 'cash', label: '💰 現金' },
   { value: 'credit', label: '💳 クレジットカード' },
@@ -78,7 +58,29 @@ const PAYMENT_METHODS = [
   { value: 'line-pay', label: '📱 LINE Pay' }
 ] as const
 
-const _DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const
+const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const
+
+const DEFAULT_HOURS: ShopHours[] = Array.from({ length: 7 }, (_, i) => ({
+  day_of_week: i,
+  open_time: '09:00',
+  close_time: '18:00',
+  is_closed: false
+}))
+
+const DEFAULT_FORM_DATA: ShopFormData = {
+  name: '',
+  address: '',
+  description: '',
+  category: 'cafe',
+  priceRange: 2,
+  phone: '',
+  website: '',
+  hasWifi: false,
+  hasPower: false,
+  paymentMethods: ['cash'],
+  tags: [],
+  hours: DEFAULT_HOURS
+}
 
 // Leafletアイコン設定
 const AdjustableIcon = L.icon({
@@ -92,11 +94,18 @@ const AdjustableIcon = L.icon({
   popupAnchor: [0, -32]
 })
 
-interface AddShopFormProps {
-  onShopAdded?: () => void
+// Geolonia API型定義
+declare global {
+  interface Window {
+    getLatLng?: (
+      address: string,
+      onSuccess: (latlng: { lat: number; lng: number }) => void,
+      onError: (error: unknown) => void
+    ) => void
+  }
 }
 
-// ドラッグ可能マーカーコンポーネント
+// コンポーネント
 function DraggableMarker({ 
   position, 
   onPositionChange 
@@ -109,7 +118,7 @@ function DraggableMarker({
   const eventHandlers = {
     dragend() {
       const marker = markerRef.current
-      if (marker != null) {
+      if (marker) {
         const newPos = marker.getLatLng()
         onPositionChange(newPos.lat, newPos.lng)
       }
@@ -118,7 +127,7 @@ function DraggableMarker({
 
   return (
     <Marker
-      draggable={true}
+      draggable
       eventHandlers={eventHandlers}
       position={position}
       ref={markerRef}
@@ -135,7 +144,6 @@ function DraggableMarker({
   )
 }
 
-// 地図クリックハンドラー
 function MapClickHandler({ 
   onLocationSelect 
 }: { 
@@ -149,158 +157,229 @@ function MapClickHandler({
   return null
 }
 
-export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
-  // ユーザー認証
-  const { user } = useUser()
-  const { isOpen: _authModalOpen, openAuthModal, closeAuthModal: _closeAuthModal, AuthModal } = useAuthModal()
-
-  // 基本情報
-  const [name, setName] = useState('')
-  const [address, setAddress] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState<keyof typeof CATEGORIES>('cafe')
-  const [priceRange, setPriceRange] = useState<1 | 2 | 3 | 4>(2)
-  
-  // 連絡先・詳細情報
-  const [phone, setPhone] = useState('')
-  const [website, setWebsite] = useState('')
-  const [hasWifi, setHasWifi] = useState(false)
-  const [hasPower, setHasPower] = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(['cash'])
-  
-  // 営業時間
-  const [hours, setHours] = useState<ShopHours[]>(
-    Array.from({ length: 7 }, (_, i) => ({
-      day_of_week: i,
-      open_time: '09:00',
-      close_time: '18:00',
-      is_closed: false
-    }))
+// フォームセクションコンポーネント
+function FormSection({ 
+  title, 
+  children 
+}: { 
+  title: string
+  children: React.ReactNode 
+}) {
+  return (
+    <div className="border-b pb-6">
+      <h3 className="text-lg font-medium mb-4 text-gray-700">{title}</h3>
+      {children}
+    </div>
   )
+}
+
+// 営業時間編集コンポーネント
+function HoursEditor({ 
+  hours, 
+  onChange,
+  disabled 
+}: { 
+  hours: ShopHours[]
+  onChange: (hours: ShopHours[]) => void
+  disabled?: boolean
+}) {
+  const updateHour = (index: number, field: keyof ShopHours, value: string | boolean) => {
+    const newHours = [...hours]
+    newHours[index] = { ...newHours[index], [field]: value }
+    onChange(newHours)
+  }
+
+  return (
+    <div className="space-y-3">
+      {hours.map((hour, index) => (
+        <div key={index} className="flex items-center gap-4">
+          <div className="w-8 text-center font-medium">
+            {DAY_NAMES[index]}
+          </div>
+          
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={hour.is_closed}
+              onChange={(e) => updateHour(index, 'is_closed', e.target.checked)}
+              className="mr-2"
+              disabled={disabled}
+            />
+            定休日
+          </label>
+
+          {!hour.is_closed && (
+            <>
+              <input
+                type="time"
+                value={hour.open_time}
+                onChange={(e) => updateHour(index, 'open_time', e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                disabled={disabled}
+              />
+              <span>〜</span>
+              <input
+                type="time"
+                value={hour.close_time}
+                onChange={(e) => updateHour(index, 'close_time', e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                disabled={disabled}
+              />
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// タグ入力コンポーネント
+function TagInput({ 
+  tags, 
+  onChange,
+  disabled 
+}: { 
+  tags: string[]
+  onChange: (tags: string[]) => void
+  disabled?: boolean
+}) {
+  const [inputValue, setInputValue] = useState('')
   
-  // タグ
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [customTag, setCustomTag] = useState('')
-  
-  // 画像
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [_imagePreview, setImagePreview] = useState<string | null>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  
-  // 地図・送信状態
+  const COMMON_TAGS = [
+    'wifi', 'quiet', 'meeting', 'takeout', 'outdoor',
+    'study', 'laptop', 'parking', 'pet-friendly', 'late-night',
+    'breakfast', 'lunch', 'dessert', 'specialty-coffee', 'tea'
+  ]
+
+  const addTag = (tag: string) => {
+    const normalizedTag = tag.trim().toLowerCase()
+    if (normalizedTag && !tags.includes(normalizedTag)) {
+      onChange([...tags, normalizedTag])
+    }
+  }
+
+  const removeTag = (tagToRemove: string) => {
+    onChange(tags.filter(tag => tag !== tagToRemove))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (inputValue.trim()) {
+      addTag(inputValue)
+      setInputValue('')
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-4">
+        <p className="text-sm text-gray-600 mb-2">よく使われるタグ:</p>
+        <div className="flex flex-wrap gap-2">
+          {COMMON_TAGS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => addTag(tag)}
+              disabled={tags.includes(tag) || disabled}
+              className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                tags.includes(tag)
+                  ? 'bg-blue-100 text-blue-800 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          placeholder="カスタムタグを追加"
+          disabled={disabled}
+        />
+        <button
+          type="submit"
+          disabled={!inputValue.trim() || disabled}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+        >
+          追加
+        </button>
+      </form>
+
+      {tags.length > 0 && (
+        <div>
+          <p className="text-sm text-gray-600 mb-2">選択されたタグ:</p>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="text-blue-600 hover:text-blue-800"
+                  disabled={disabled}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface AddShopFormProps {
+  onShopAdded?: () => void
+}
+
+export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
+  const { user } = useUser()
+  const { openAuthModal, AuthModal } = useAuthModal()
+
+  // フォーム状態
+  const [formData, setFormData] = useState<ShopFormData>(DEFAULT_FORM_DATA)
   const [showMap, setShowMap] = useState(false)
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null)
   const [mapCenter, setMapCenter] = useState<[number, number]>([35.6762, 139.6503])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
-  const [geocodingStatus, setGeocodingStatus] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
-  // 認証チェック
-  const checkAuthentication = useCallback(() => {
-    if (!user) {
-      openAuthModal()
-      return false
-    }
-    return true
-  }, [user, openAuthModal])
-
-  // 画像選択ハンドラー
-  const _handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB制限
-        setError('画像サイズは5MB以下にしてください')
-        return
-      }
-      setSelectedImage(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  // 画像アップロード
-  const uploadImage = async (file: File): Promise<string | null> => {
-    try {
-      setUploadingImage(true)
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `shops/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('shop_images')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage
-        .from('shop_images')
-        .getPublicUrl(filePath)
-
-      return data.publicUrl
-    } catch (_error) {
-      console.error('画像アップロードエラー:', _error)
-      return null
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
-  // タグ追加
-  const addTag = (tag: string) => {
-    if (tag && !selectedTags.includes(tag)) {
-      setSelectedTags([...selectedTags, tag])
-    }
-  }
-
-  const _addCustomTag = () => {
-    if (customTag.trim()) {
-      addTag(customTag.trim().toLowerCase())
-      setCustomTag('')
-    }
-  }
-
-  const _removeTag = (tagToRemove: string) => {
-    setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove))
-  }
-
-  // 営業時間更新
-  const _updateHours = (dayIndex: number, field: keyof ShopHours, value: string | boolean) => {
-    setHours(hours.map((hour, index) => 
-      index === dayIndex ? { ...hour, [field]: value } : hour
-    ))
-  }
-
-  // 決済方法トグル
-  const togglePaymentMethod = (method: string) => {
-    setPaymentMethods(prev => 
-      prev.includes(method) 
-        ? prev.filter(m => m !== method)
-        : [...prev, method]
-    )
-  }
+  // フォームデータ更新
+  const updateFormData = useCallback(<K extends keyof ShopFormData>(
+    field: K,
+    value: ShopFormData[K]
+  ) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
 
   // 住所検索
   const handleGeocodeAndShowMap = useCallback(async () => {
-    if (!checkAuthentication()) return
+    if (!user) {
+      openAuthModal()
+      return
+    }
 
-    if (!name.trim() || !address.trim()) {
-      setError('店舗名と住所を入力してください')
+    if (!formData.name.trim() || !formData.address.trim()) {
+      showToast('店舗名と住所を入力してください', 'error')
       return
     }
 
     if (!window.getLatLng) {
-      setError('地図機能が利用できません。ページを再読み込みしてください。')
+      showToast('地図機能が利用できません。ページを再読み込みしてください。', 'error')
       return
     }
 
     setIsGeocoding(true)
-    setGeocodingStatus('住所を解析しています...')
-    setError(null)
     
     try {
       await new Promise<void>((resolve, reject) => {
@@ -309,72 +388,87 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
         }, 10000)
 
         window.getLatLng!(
-          address.trim(),
+          formData.address.trim(),
           (latlng) => {
             clearTimeout(timeoutId)
             setMarkerPosition([latlng.lat, latlng.lng])
             setMapCenter([latlng.lat, latlng.lng])
             setShowMap(true)
-            setGeocodingStatus(`✅ 座標を取得しました！`)
+            showToast('座標を取得しました！', 'success')
             resolve()
           },
-          (_error) => {
+          () => {
             clearTimeout(timeoutId)
             reject(new Error('住所の解析に失敗しました'))
           }
         )
       })
-    } catch (_error) {
-      const errorMessage = _error instanceof Error ? _error.message : '住所の解析に失敗しました'
-      setError(errorMessage)
-      setGeocodingStatus('')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '住所の解析に失敗しました'
+      showToast(errorMessage, 'error')
     } finally {
       setIsGeocoding(false)
     }
-  }, [address, name, checkAuthentication])
+  }, [formData.address, formData.name, user, openAuthModal])
+
+  // 画像アップロード
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = `shops/${fileName}`
+
+      const { error } = await supabase.storage
+        .from('shop_images')
+        .upload(filePath, file)
+
+      if (error) throw error
+
+      const { data } = supabase.storage
+        .from('shop_images')
+        .getPublicUrl(filePath)
+
+      return data.publicUrl
+    } catch (error) {
+      console.error('画像アップロードエラー:', error)
+      return null
+    }
+  }
 
   // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!checkAuthentication()) return
+    if (!user) {
+      openAuthModal()
+      return
+    }
 
-    if (!name.trim() || !address.trim() || !markerPosition) {
-      setError('必須項目を入力し、地図上で位置を確認してください')
+    if (!formData.name.trim() || !formData.address.trim() || !markerPosition) {
+      showToast('必須項目を入力し、地図上で位置を確認してください', 'error')
       return
     }
 
     setIsSubmitting(true)
-    setError(null)
 
     try {
       const [lat, lng] = markerPosition
-      
-      // 画像アップロード
-      let imageUrl: string | null = null
-      if (selectedImage) {
-        imageUrl = await uploadImage(selectedImage)
-        if (!imageUrl) {
-          throw new Error('画像のアップロードに失敗しました')
-        }
-      }
 
-      // 店舗データ準備（created_byを追加）
+      // 店舗データ準備
       const shopData = {
-        name: name.trim(),
-        address: address.trim(),
-        description: description.trim() || null,
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        description: formData.description.trim() || null,
         latitude: lat,
         longitude: lng,
-        category,
-        price_range: priceRange,
-        phone: phone.trim() || null,
-        website: website.trim() || null,
-        has_wifi: hasWifi,
-        has_power: hasPower,
-        main_image_url: imageUrl,
-        payment_methods: paymentMethods,
-        created_by: user!.id // ユーザーIDを追加
+        category: formData.category,
+        price_range: formData.priceRange,
+        phone: formData.phone.trim() || null,
+        website: formData.website.trim() || null,
+        has_wifi: formData.hasWifi,
+        has_power: formData.hasPower,
+        payment_methods: formData.paymentMethods,
+        created_by: user.id
       }
 
       // 店舗登録
@@ -389,90 +483,37 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
       const shopId = shopResult.id
 
       // 営業時間登録
-      const hoursData = hours.map(hour => ({
+      const hoursData = formData.hours.map(hour => ({
         shop_id: shopId,
         ...hour
       }))
 
-      const { error: hoursError } = await supabase
-        .from('shop_hours')
-        .insert(hoursData)
-
-      if (hoursError) console.warn('営業時間登録エラー:', hoursError)
+      await supabase.from('shop_hours').insert(hoursData)
 
       // タグ登録
-      if (selectedTags.length > 0) {
-        const tagsData = selectedTags.map(tag => ({
+      if (formData.tags.length > 0) {
+        const tagsData = formData.tags.map(tag => ({
           shop_id: shopId,
           tag
         }))
-
-        const { error: tagsError } = await supabase
-          .from('shop_tags')
-          .insert(tagsData)
-
-        if (tagsError) console.warn('タグ登録エラー:', tagsError)
+        await supabase.from('shop_tags').insert(tagsData)
       }
 
-      setSuccess('✅ 店舗を登録しました！ありがとうございます。')
-      
-      // 成功通知を送信
-      const successEvent = new CustomEvent('showToast', {
-        detail: {
-          message: '新しい店舗を登録しました！',
-          type: 'success'
-        }
-      })
-      window.dispatchEvent(successEvent)
+      showToast('店舗を登録しました！ありがとうございます。', 'success')
       
       // フォームリセット
-      setName('')
-      setAddress('')
-      setDescription('')
-      setCategory('cafe')
-      setPriceRange(2)
-      setPhone('')
-      setWebsite('')
-      setHasWifi(false)
-      setHasPower(false)
-      setPaymentMethods(['cash'])
-      setSelectedTags([])
-      setSelectedImage(null)
-      setImagePreview(null)
+      setFormData(DEFAULT_FORM_DATA)
       setShowMap(false)
       setMarkerPosition(null)
-      setGeocodingStatus('')
-      
-      // 営業時間をリセット
-      setHours(Array.from({ length: 7 }, (_, i) => ({
-        day_of_week: i,
-        open_time: '09:00',
-        close_time: '18:00',
-        is_closed: false
-      })))
 
       if (onShopAdded) {
         onShopAdded()
       }
 
-      // 成功メッセージを自動で消す
-      setTimeout(() => {
-        setSuccess(null)
-      }, 5000)
-
-    } catch (_error) {
-      console.error('登録エラー:', _error)
-      const errorMessage = _error instanceof Error ? _error.message : '店舗の登録に失敗しました'
-      setError(errorMessage)
-      
-      // エラー通知を送信
-      const errorEvent = new CustomEvent('showToast', {
-        detail: {
-          message: '店舗の登録に失敗しました',
-          type: 'error'
-        }
-      })
-      window.dispatchEvent(errorEvent)
+    } catch (error) {
+      console.error('登録エラー:', error)
+      const errorMessage = error instanceof Error ? error.message : '店舗の登録に失敗しました'
+      showToast(errorMessage, 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -496,18 +537,16 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
     }
   }, [])
 
+  const isFormDisabled = !user || isSubmitting
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">🏪 新しい店舗を追加</h2>
-        
-        {/* ユーザーメニュー */}
-        <div className="flex-shrink-0">
-          <UserMenu />
-        </div>
+        <UserMenu />
       </div>
       
-      {/* 認証が必要な場合の案内 */}
+      {/* 認証案内 */}
       {!user && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3">
@@ -527,24 +566,10 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
           </div>
         </div>
       )}
-      
-      {/* エラー・成功表示 */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-          ⚠️ {error}
-        </div>
-      )}
-      {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-600">
-          {success}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 基本情報セクション */}
-        <div className="border-b pb-6">
-          <h3 className="text-lg font-medium mb-4 text-gray-700">📝 基本情報</h3>
-          
+        {/* 基本情報 */}
+        <FormSection title="📝 基本情報">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -552,12 +577,12 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
               </label>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={formData.name}
+                onChange={(e) => updateFormData('name', e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 青山コーヒー焙煎所"
                 required
-                disabled={!user}
+                disabled={isFormDisabled}
               />
             </div>
             
@@ -566,10 +591,10 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
                 カテゴリー
               </label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as keyof typeof CATEGORIES)}
+                value={formData.category}
+                onChange={(e) => updateFormData('category', e.target.value as typeof formData.category)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={!user}
+                disabled={isFormDisabled}
               >
                 {Object.entries(CATEGORIES).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
@@ -585,17 +610,17 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
             <div className="flex gap-2">
               <input
                 type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={formData.address}
+                onChange={(e) => updateFormData('address', e.target.value)}
                 className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 大阪府大阪市北区角田町9-26"
                 required
-                disabled={!user}
+                disabled={isFormDisabled}
               />
               <button
                 type="button"
                 onClick={handleGeocodeAndShowMap}
-                disabled={isGeocoding || !user}
+                disabled={isGeocoding || isFormDisabled}
                 className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400"
               >
                 {isGeocoding ? '検索中...' : '🗺️ 地図で確認'}
@@ -608,22 +633,20 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
               価格帯
             </label>
             <select
-              value={priceRange}
-              onChange={(e) => setPriceRange(Number(e.target.value) as 1 | 2 | 3 | 4)}
+              value={formData.priceRange}
+              onChange={(e) => updateFormData('priceRange', Number(e.target.value) as typeof formData.priceRange)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              disabled={!user}
+              disabled={isFormDisabled}
             >
               {Object.entries(PRICE_RANGES).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
           </div>
-        </div>
+        </FormSection>
 
-        {/* 連絡先・詳細情報 */}
-        <div className="border-b pb-6">
-          <h3 className="text-lg font-medium mb-4 text-gray-700">📞 連絡先・詳細</h3>
-          
+        {/* 連絡先・詳細 */}
+        <FormSection title="📞 連絡先・詳細">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -631,11 +654,11 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
               </label>
               <input
                 type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={formData.phone}
+                onChange={(e) => updateFormData('phone', e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 03-1234-5678"
-                disabled={!user}
+                disabled={isFormDisabled}
               />
             </div>
             
@@ -645,11 +668,11 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
               </label>
               <input
                 type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                value={formData.website}
+                onChange={(e) => updateFormData('website', e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="例: https://example.com"
-                disabled={!user}
+                disabled={isFormDisabled}
               />
             </div>
           </div>
@@ -658,20 +681,20 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={hasWifi}
-                onChange={(e) => setHasWifi(e.target.checked)}
+                checked={formData.hasWifi}
+                onChange={(e) => updateFormData('hasWifi', e.target.checked)}
                 className="mr-2"
-                disabled={!user}
+                disabled={isFormDisabled}
               />
               📶 Wi-Fi あり
             </label>
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={hasPower}
-                onChange={(e) => setHasPower(e.target.checked)}
+                checked={formData.hasPower}
+                onChange={(e) => updateFormData('hasPower', e.target.checked)}
                 className="mr-2"
-                disabled={!user}
+                disabled={isFormDisabled}
               />
               🔌 電源あり
             </label>
@@ -686,43 +709,57 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
                 <label key={value} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={paymentMethods.includes(value)}
-                    onChange={() => togglePaymentMethod(value)}
+                    checked={formData.paymentMethods.includes(value)}
+                    onChange={() => {
+                      const newMethods = formData.paymentMethods.includes(value)
+                        ? formData.paymentMethods.filter(m => m !== value)
+                        : [...formData.paymentMethods, value]
+                      updateFormData('paymentMethods', newMethods)
+                    }}
                     className="mr-2"
-                    disabled={!user}
+                    disabled={isFormDisabled}
                   />
                   <span className="text-sm">{label}</span>
                 </label>
               ))}
             </div>
           </div>
-        </div>
+        </FormSection>
+
+        {/* 営業時間 */}
+        <FormSection title="🕐 営業時間">
+          <HoursEditor
+            hours={formData.hours}
+            onChange={(hours) => updateFormData('hours', hours)}
+            disabled={isFormDisabled}
+          />
+        </FormSection>
+
+        {/* タグ */}
+        <FormSection title="🏷️ タグ">
+          <TagInput
+            tags={formData.tags}
+            onChange={(tags) => updateFormData('tags', tags)}
+            disabled={isFormDisabled}
+          />
+        </FormSection>
 
         {/* 説明 */}
-        <div className="border-b pb-6">
-          <h3 className="text-lg font-medium mb-4 text-gray-700">📝 説明・特徴</h3>
+        <FormSection title="📝 説明・特徴">
           <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={formData.description}
+            onChange={(e) => updateFormData('description', e.target.value)}
             className="w-full p-3 border border-gray-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500"
             placeholder="店舗の特徴や雰囲気を教えてください..."
             maxLength={500}
-            disabled={!user}
+            disabled={isFormDisabled}
           />
-          <p className="text-xs text-gray-500 mt-1">{description.length}/500文字</p>
-        </div>
+          <p className="text-xs text-gray-500 mt-1">{formData.description.length}/500文字</p>
+        </FormSection>
 
         {/* 地図 */}
         {showMap && markerPosition && user && (
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-medium mb-4 text-gray-700">🗺️ 位置確認</h3>
-            
-            {geocodingStatus && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
-                {geocodingStatus}
-              </div>
-            )}
-            
+          <FormSection title="🗺️ 位置確認">
             <div className="h-80 w-full rounded-lg overflow-hidden border">
               <MapContainer 
                 center={mapCenter}
@@ -746,51 +783,33 @@ export default function UpdatedAddShopForm({ onShopAdded }: AddShopFormProps) {
             <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
               💡 赤いピンをドラッグするか、地図をクリックして正確な位置に調整してください
             </div>
-          </div>
+          </FormSection>
         )}
 
         {/* 送信ボタン */}
         <button 
           type="submit"
-          disabled={isSubmitting || !user || !name.trim() || !address.trim() || !markerPosition || uploadingImage}
+          disabled={isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition}
           className={`w-full p-4 rounded-lg transition-all font-medium text-lg ${
-            isSubmitting || !user || !name.trim() || !address.trim() || !markerPosition || uploadingImage
+            isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition
               ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {!user ? (
-            '👤 サインインが必要です'
-          ) : isSubmitting ? (
+          {!user ? '👤 サインインが必要です' : 
+           isSubmitting ? (
             <div className="flex items-center justify-center">
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
               登録中...
             </div>
-          ) : uploadingImage ? (
-            '画像アップロード中...'
-          ) : !markerPosition ? (
-            '🗺️ まず地図で位置を確認してください'
-          ) : (
-            '🏪 店舗を登録'
-          )}
+          ) : !markerPosition ? '🗺️ まず地図で位置を確認してください' : '🏪 店舗を登録'}
         </button>
       </form>
 
-      {/* 認証モーダル */}
       <AuthModal 
         title="店舗登録にはサインインが必要です"
         message="コミュニティの品質維持のため、店舗情報の登録にはサインインをお願いしています。"
       />
-
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-      `}</style>
     </div>
   )
 }
