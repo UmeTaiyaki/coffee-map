@@ -12,7 +12,70 @@ import SortSelector from './SortSelector'
 import { useAuthModal } from './AuthModal'
 import { sortShops, resetRandomSort } from '../utils/sorting'
 import { showToast } from './ToastNotification'
-import type { ShopWithDetails, FilterState, SortState } from '../types'
+import type { FilterState, SortState } from '../types/filters'
+
+// Shop関連の型定義を直接定義
+interface Shop {
+  id: number
+  name: string
+  address: string
+  description?: string
+  latitude: number
+  longitude: number
+  created_at?: string
+  phone?: string
+  website?: string
+  has_wifi?: boolean
+  has_power?: boolean
+  category: 'cafe' | 'roastery' | 'chain' | 'specialty' | 'bakery'
+  price_range: 1 | 2 | 3 | 4
+  main_image_url?: string
+  payment_methods?: string[]
+  created_by?: string
+}
+
+interface ShopImage {
+  id: number
+  shop_id: number
+  image_url: string
+  is_main: boolean
+  uploaded_by?: string
+  created_at: string
+}
+
+interface ShopHours {
+  id: number
+  shop_id: number
+  day_of_week: number
+  open_time?: string
+  close_time?: string
+  is_closed: boolean
+}
+
+interface ShopTag {
+  id: number
+  shop_id: number
+  tag: string
+}
+
+interface Review {
+  id: number
+  shop_id: number
+  user_id?: string
+  reviewer_name: string
+  rating: number
+  comment: string
+  created_at: string
+}
+
+interface ShopWithDetails extends Shop {
+  images?: ShopImage[]
+  hours?: ShopHours[]
+  tags?: ShopTag[]
+  reviews?: Review[]
+  distance?: number
+  isFavorite?: boolean
+}
 
 // 定数
 const DEFAULT_CENTER: [number, number] = [35.6762, 139.6503]
@@ -20,6 +83,22 @@ const DEFAULT_ZOOM = 13
 const LOCATION_ZOOM = 15
 const LOCATION_TIMEOUT = 12000
 const LOCATION_MAX_AGE = 300000
+
+// カテゴリーと価格帯の定数
+const CATEGORIES = {
+  cafe: '☕ カフェ',
+  roastery: '🔥 焙煎所',
+  chain: '🏪 チェーン店',
+  specialty: '✨ スペシャルティ',
+  bakery: '🥐 ベーカリーカフェ'
+} as const
+
+const PRICE_RANGES = {
+  1: '¥',
+  2: '¥¥',
+  3: '¥¥¥',
+  4: '¥¥¥¥'
+} as const
 
 // アイコン設定
 const DefaultIcon = L.icon({
@@ -63,7 +142,9 @@ const defaultSort: SortState = {
 function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap()
   useEffect(() => {
-    map.setView(center, zoom)
+    if (map) {
+      map.setView(center, zoom)
+    }
   }, [center, zoom, map])
   return null
 }
@@ -144,18 +225,6 @@ function BasicFilters({
   onSortChange: (sort: SortState) => void
   onRandomReset: () => void
 }) {
-  const CATEGORIES = {
-    cafe: '☕ カフェ',
-    roastery: '🔥 焙煎所',
-    chain: '🏪 チェーン店',
-    specialty: '✨ スペシャルティ',
-    bakery: '🥐 ベーカリーカフェ'
-  }
-
-  const PRICE_RANGES = {
-    1: '¥', 2: '¥¥', 3: '¥¥¥', 4: '¥¥¥¥'
-  }
-
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -163,7 +232,7 @@ function BasicFilters({
           <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリー</label>
           <select
             value={filters.category}
-            onChange={(e) => onFiltersChange({ category: e.target.value })}
+            onChange={(e) => onFiltersChange({ category: e.target.value as FilterState['category'] })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">すべて</option>
@@ -177,7 +246,7 @@ function BasicFilters({
           <label className="block text-sm font-medium text-gray-700 mb-1">価格帯</label>
           <select
             value={filters.priceRange}
-            onChange={(e) => onFiltersChange({ priceRange: e.target.value })}
+            onChange={(e) => onFiltersChange({ priceRange: e.target.value as FilterState['priceRange'] })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">すべて</option>
@@ -257,18 +326,6 @@ function ShopMarker({
   onToggleFavorite: (shopId: number) => void
   onShowDetails: (shop: ShopWithDetails) => void
 }) {
-  const CATEGORIES = {
-    cafe: '☕ カフェ',
-    roastery: '🔥 焙煎所',
-    chain: '🏪 チェーン店',
-    specialty: '✨ スペシャルティ',
-    bakery: '🥐 ベーカリーカフェ'
-  }
-
-  const PRICE_RANGES = {
-    1: '¥', 2: '¥¥', 3: '¥¥¥', 4: '¥¥¥¥'
-  }
-
   const isOpenNow = useCallback(() => {
     if (!shop.hours) return false
     const now = new Date()

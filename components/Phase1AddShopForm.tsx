@@ -1,4 +1,4 @@
-// components/Phase1AddShopForm.tsx - 新規作成
+// components/Phase1AddShopForm.tsx - 警告修正版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -261,8 +261,8 @@ export default function Phase1AddShopForm({ onShopAdded }: Phase1AddShopFormProp
           }
         )
       })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '住所の解析に失敗しました'
+    } catch (geocodeError) {
+      const errorMessage = geocodeError instanceof Error ? geocodeError.message : '住所の解析に失敗しました'
       setError(errorMessage)
     } finally {
       setIsGeocoding(false)
@@ -303,7 +303,6 @@ export default function Phase1AddShopForm({ onShopAdded }: Phase1AddShopFormProp
         has_wifi: hasWifi,
         has_power: hasPower,
         main_image_url: mainImageUrl,
-        image_urls: [mainImageUrl, ...additionalImageUrls].filter(Boolean),
         payment_methods: paymentMethods,
         created_by: user.id
       }
@@ -367,9 +366,9 @@ export default function Phase1AddShopForm({ onShopAdded }: Phase1AddShopFormProp
         onShopAdded()
       }
 
-    } catch (error) {
-      console.error('登録エラー:', error)
-      setError(error instanceof Error ? error.message : '店舗の登録に失敗しました')
+    } catch (submitError) {
+      console.error('登録エラー:', submitError)
+      setError(submitError instanceof Error ? submitError.message : '店舗の登録に失敗しました')
     } finally {
       setIsSubmitting(false)
     }
@@ -567,6 +566,7 @@ export default function Phase1AddShopForm({ onShopAdded }: Phase1AddShopFormProp
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
                   {additionalImageUrls.map((url, index) => (
                     <div key={index} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={url}
                         alt={`追加画像${index + 1}`}
@@ -865,7 +865,6 @@ export default function Phase1AddShopForm({ onShopAdded }: Phase1AddShopFormProp
           to { transform: rotate(360deg); }
         }
         .animate-spin {
-          animation: spin        .animate-spin {
           animation: spin 1s linear infinite;
         }
       `}</style>

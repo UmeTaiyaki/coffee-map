@@ -32,6 +32,8 @@ interface ShopImage {
   shop_id: number
   image_url: string
   is_main: boolean
+  uploaded_by?: string
+  created_at: string
 }
 
 interface ShopHours {

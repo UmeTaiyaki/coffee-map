@@ -1,7 +1,6 @@
-// components/ImageUpload.tsx - 新規作成
+// components/ImageUpload.tsx - 修正版
 'use client'
 import React, { useState, useRef, useCallback } from 'react'
-import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 
 interface ImageUploadProps {
@@ -13,7 +12,6 @@ interface ImageUploadProps {
 }
 
 export default function ImageUpload({
-  shopId,
   onImageUploaded,
   multiple = false,
   maxSize = 5,
@@ -113,10 +111,10 @@ export default function ImageUpload({
       // ファイル名生成
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = shopId ? `shops/${shopId}/${fileName}` : `temp/${fileName}`
+      const filePath = `temp/${fileName}`
 
       // Supabaseストレージにアップロード
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('shop-images')
         .upload(filePath, compressedBlob, {
           contentType: 'image/jpeg',
@@ -141,24 +139,9 @@ export default function ImageUpload({
         onImageUploaded(publicUrl)
       }
 
-      // データベースに画像情報を保存（shopIdがある場合）
-      if (shopId) {
-        const { error: dbError } = await supabase
-          .from('shop_images')
-          .insert({
-            shop_id: shopId,
-            image_url: publicUrl,
-            is_main: false
-          })
-
-        if (dbError) {
-          console.error('Failed to save image info to database:', dbError)
-        }
-      }
-
-    } catch (error) {
-      console.error('Upload error:', error)
-      setError(error instanceof Error ? error.message : '画像のアップロードに失敗しました')
+    } catch (uploadError) {
+      console.error('Upload error:', uploadError)
+      setError(uploadError instanceof Error ? uploadError.message : '画像のアップロードに失敗しました')
     } finally {
       setUploading(false)
     }
@@ -234,11 +217,10 @@ export default function ImageUpload({
       {/* プレビュー */}
       {preview && (
         <div className="relative w-full max-w-md">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={preview}
             alt="アップロード画像プレビュー"
-            width={400}
-            height={300}
             className="w-full h-auto rounded-lg border"
             style={{ maxHeight: '300px', objectFit: 'contain' }}
           />

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 
 // Geolonia APIの型定義を追加
@@ -168,7 +167,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>([35.6762, 139.6503])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
-  const [geocodingStatus, setGeocodingStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -263,7 +261,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
     }
 
     setIsGeocoding(true)
-    setGeocodingStatus('住所を解析しています...')
     setError(null)
     
     try {
@@ -279,10 +276,9 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             setMarkerPosition([latlng.lat, latlng.lng])
             setMapCenter([latlng.lat, latlng.lng])
             setShowMap(true)
-            setGeocodingStatus(`✅ 座標を取得しました！`)
             resolve()
           },
-          (geocodeError) => {
+          () => {
             clearTimeout(timeoutId)
             reject(new Error('住所の解析に失敗しました'))
           }
@@ -291,7 +287,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
     } catch (geocodeError) {
       const errorMessage = geocodeError instanceof Error ? geocodeError.message : '住所の解析に失敗しました'
       setError(errorMessage)
-      setGeocodingStatus('')
     } finally {
       setIsGeocoding(false)
     }
@@ -389,7 +384,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
       setImagePreview(null)
       setShowMap(false)
       setMarkerPosition(null)
-      setGeocodingStatus('')
       
       // 営業時間をリセット
       setHours(Array.from({ length: 7 }, (_, i) => ({
@@ -719,11 +713,10 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             
             {imagePreview && (
               <div className="relative">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={imagePreview}
                   alt="プレビュー"
-                  width={384}
-                  height={192}
                   className="w-full max-w-md h-48 object-cover rounded-lg"
                 />
                 <button
@@ -758,12 +751,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
         {showMap && markerPosition && (
           <div className="border-b pb-6">
             <h3 className="text-lg font-medium mb-4 text-gray-700">🗺️ 位置確認</h3>
-            
-            {geocodingStatus && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
-                {geocodingStatus}
-              </div>
-            )}
             
             <div className="h-80 w-full rounded-lg overflow-hidden border">
               <MapContainer 
