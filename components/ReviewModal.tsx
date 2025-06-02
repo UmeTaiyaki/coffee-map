@@ -1,9 +1,8 @@
-// components/ReviewModal.tsx - 統合版（Phase3対応）
+// components/ReviewModal.tsx - 完全版（サインインボタン削除）
 import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
-import { useAuthModal } from './AuthModal'
 import { showToast } from './ToastNotification'
 
 // 型定義
@@ -105,7 +104,6 @@ export default function ReviewModal({
   onReviewAdded
 }: ReviewModalProps) {
   const { user } = useUser()
-  const { openAuthModal, AuthModal } = useAuthModal()
 
   // 状態管理
   const [reviews, setReviews] = useState<DetailedReview[]>([])
@@ -248,7 +246,7 @@ export default function ReviewModal({
   // レビュー投稿フォーム表示
   const handleShowAddForm = () => {
     if (!user) {
-      openAuthModal()
+      showToast('レビューの投稿にはサインインが必要です。右上のサインインボタンからログインしてください。', 'warning', 6000)
       return
     }
 
@@ -266,7 +264,7 @@ export default function ReviewModal({
   // 基本レビュー投稿
   const submitBasicReview = async () => {
     if (!user) {
-      openAuthModal()
+      showToast('レビューの投稿にはサインインが必要です。右上のサインインボタンからログインしてください。', 'warning', 6000)
       return
     }
 
@@ -313,7 +311,7 @@ export default function ReviewModal({
   // 詳細レビュー投稿（Phase 3）
   const submitDetailedReview = async () => {
     if (!user) {
-      openAuthModal()
+      showToast('レビューの投稿にはサインインが必要です。右上のサインインボタンからログインしてください。', 'warning', 6000)
       return
     }
 
@@ -451,472 +449,458 @@ export default function ReviewModal({
   const averageRatings = calculateAverageRatings()
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-          {/* ヘッダー */}
-          <div className="p-6 border-b flex-shrink-0">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">
-                  📝 {shopName} のレビュー
-                </h2>
-                {averageRatings && (
-                  <div className="mt-2 flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <RatingStars rating={Math.round(parseFloat(averageRatings.overall))} size="small" />
-                      <span className="font-semibold">{averageRatings.overall}</span>
-                      <span className="text-gray-500">({reviews.length}件)</span>
-                    </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* ヘッダー */}
+        <div className="p-6 border-b flex-shrink-0">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">
+                📝 {shopName} のレビュー
+              </h2>
+              {averageRatings && (
+                <div className="mt-2 flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <RatingStars rating={Math.round(parseFloat(averageRatings.overall))} size="small" />
+                    <span className="font-semibold">{averageRatings.overall}</span>
+                    <span className="text-gray-500">({reviews.length}件)</span>
                   </div>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
+                </div>
+              )}
             </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
 
-            {/* タブナビゲーション */}
-            <div className="mt-4 flex gap-4">
+          {/* タブナビゲーション */}
+          <div className="mt-4 flex gap-4">
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'reviews'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              レビュー一覧
+            </button>
+            {user && !userHasReviewed && (
               <button
-                onClick={() => setActiveTab('reviews')}
+                onClick={() => {
+                  setActiveTab('add')
+                  setShowAddForm(true)
+                }}
                 className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'reviews'
+                  activeTab === 'add'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                レビュー一覧
+                レビューを書く
               </button>
-              {user && !userHasReviewed && (
-                <button
-                  onClick={() => {
-                    setActiveTab('add')
-                    setShowAddForm(true)
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    activeTab === 'add'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  レビューを書く
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* コンテンツ */}
-          <div className="flex-1 overflow-y-auto">
-            {activeTab === 'reviews' && (
-              <div className="p-6">
-                {/* 平均評価サマリー */}
-                {averageRatings?.detailed && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold mb-3">詳細評価サマリー</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
-                        <div key={key}>
-                          <div className="text-sm text-gray-600">{label}</div>
-                          <div className="flex items-center gap-1">
-                            <RatingStars 
-                              rating={Math.round(parseFloat(averageRatings.detailed![key as keyof typeof averageRatings.detailed]))} 
-                              size="small" 
-                            />
-                            <span className="font-semibold text-sm">
-                              {averageRatings.detailed[key as keyof typeof averageRatings.detailed]}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* レビュー投稿ボタン */}
-                {!user ? (
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-blue-800 text-sm font-medium">レビューを投稿するにはサインインが必要です</p>
-                        <p className="text-blue-600 text-xs mt-1">Googleアカウントで簡単にサインインできます</p>
-                      </div>
-                      <button
-                        onClick={openAuthModal}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                      >
-                        サインイン
-                      </button>
-                    </div>
-                  </div>
-                ) : userHasReviewed ? (
-                  <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-                    ✅ このお店にレビュー投稿済みです
-                  </div>
-                ) : (
-                  <div className="mb-6">
-                    <button
-                      onClick={handleShowAddForm}
-                      className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      📝 レビューを書く
-                    </button>
-                  </div>
-                )}
-
-                {/* レビュー一覧 */}
-                <div className="space-y-6">
-                  {loading ? (
-                    <div className="text-center py-8">
-                      <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                      <div className="text-sm text-gray-600">レビューを読み込み中...</div>
-                    </div>
-                  ) : reviews.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-4xl mb-2">📝</div>
-                      <div className="text-sm">まだレビューがありません</div>
-                      <div className="text-xs">最初のレビューを投稿してみませんか？</div>
-                    </div>
-                  ) : (
-                    reviews.map((review) => (
-                      <div key={review.id} className="border-b pb-6 last:border-b-0">
-                        {/* レビューヘッダー */}
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="font-semibold">{review.reviewer_name}</div>
-                              {review.user_id === user?.id && (
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                                  あなたの投稿
-                                </span>
-                              )}
-                              {review.visit_purpose && (
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                                  {VISIT_PURPOSES[review.visit_purpose]}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 text-sm text-gray-600">
-                              <span>{formatDate(review.created_at)}</span>
-                              {review.visit_date && (
-                                <span>訪問: {new Date(review.visit_date).toLocaleDateString('ja-JP')}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <RatingStars rating={review.rating} size="small" />
-                            <span className="font-semibold">{review.rating}</span>
-                          </div>
-                        </div>
-
-                        {/* 詳細評価（ある場合） */}
-                        {review.atmosphere_rating && (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-gray-50 rounded">
-                            {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
-                              <div key={key} className="text-sm">
-                                <span className="text-gray-600">{label}:</span>
-                                <span className="ml-1 font-medium">
-                                  ⭐{review[`${key}_rating` as keyof DetailedReview]}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* コメント */}
-                        <p className="text-gray-700 whitespace-pre-wrap mb-3 leading-relaxed">{review.comment}</p>
-
-                        {/* 画像 */}
-                        {review.images && review.images.length > 0 && (
-                          <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-3">
-                            {review.images.map((imageUrl, index) => (
-                              <Image
-                                key={index}
-                                src={imageUrl}
-                                alt={`レビュー画像 ${index + 1}`}
-                                width={120}
-                                height={120}
-                                className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-90"
-                                onClick={() => window.open(imageUrl, '_blank')}
-                              />
-                            ))}
-                          </div>
-                        )}
-
-                        {/* アクション */}
-                        <div className="flex items-center gap-4 text-sm">
-                          <button className="text-gray-600 hover:text-blue-600 transition-colors">
-                            👍 役に立った ({review.helpful_count || 0})
-                          </button>
-                          <button className="text-gray-600 hover:text-red-600 transition-colors">
-                            🚩 報告
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             )}
+          </div>
+        </div>
 
-            {activeTab === 'add' && showAddForm && user && (
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">レビューを投稿</h3>
-                
-                {/* レビュータイプ選択 */}
+        {/* コンテンツ */}
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'reviews' && (
+            <div className="p-6">
+              {/* 平均評価サマリー */}
+              {averageRatings?.detailed && (
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium mb-3">レビュータイプを選択</h4>
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={!useDetailedReview}
-                        onChange={() => setUseDetailedReview(false)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">基本レビュー（簡単）</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={useDetailedReview}
-                        onChange={() => setUseDetailedReview(true)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">詳細レビュー（写真・詳細評価付き）</span>
-                    </label>
+                  <h3 className="font-semibold mb-3">詳細評価サマリー</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
+                      <div key={key}>
+                        <div className="text-sm text-gray-600">{label}</div>
+                        <div className="flex items-center gap-1">
+                          <RatingStars 
+                            rating={Math.round(parseFloat(averageRatings.detailed![key as keyof typeof averageRatings.detailed]))} 
+                            size="small" 
+                          />
+                          <span className="font-semibold text-sm">
+                            {averageRatings.detailed[key as keyof typeof averageRatings.detailed]}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {!useDetailedReview ? (
-                  /* 基本レビューフォーム */
-                  <div className="space-y-4">
+              {/* レビュー投稿ボタン - サインインボタンを削除 */}
+              {!user ? (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        お名前 *
-                      </label>
-                      <input
-                        type="text"
-                        value={basicReview.reviewer_name}
-                        onChange={(e) => setBasicReview({ ...basicReview, reviewer_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        maxLength={100}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        評価 *
-                      </label>
-                      <RatingStars
-                        rating={basicReview.rating}
-                        onRatingChange={(rating) => setBasicReview({ ...basicReview, rating })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        コメント * (10文字以上)
-                      </label>
-                      <textarea
-                        value={basicReview.comment}
-                        onChange={(e) => setBasicReview({ ...basicReview, comment: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        rows={4}
-                        maxLength={500}
-                        placeholder="このお店の感想を教えてください..."
-                      />
-                      <div className="text-xs text-gray-500 mt-1 text-right">
-                        {basicReview.comment.length}/500文字
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        onClick={submitBasicReview}
-                        disabled={isSubmitting || basicReview.comment.length < 10}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                      >
-                        {isSubmitting ? '投稿中...' : '投稿する'}
-                      </button>
-                      <button
-                        onClick={resetForm}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                        disabled={isSubmitting}
-                      >
-                        キャンセル
-                      </button>
+                      <p className="text-blue-800 text-sm font-medium">レビューを投稿するにはサインインが必要です</p>
+                      <p className="text-blue-600 text-xs mt-1">右上のサインインボタンからGoogleアカウントでサインインできます</p>
                     </div>
                   </div>
+                </div>
+              ) : userHasReviewed ? (
+                <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                  ✅ このお店にレビュー投稿済みです
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <button
+                    onClick={handleShowAddForm}
+                    className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    📝 レビューを書く
+                  </button>
+                </div>
+              )}
+
+              {/* レビュー一覧 */}
+              <div className="space-y-6">
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <div className="text-sm text-gray-600">レビューを読み込み中...</div>
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📝</div>
+                    <div className="text-sm">まだレビューがありません</div>
+                    <div className="text-xs">最初のレビューを投稿してみませんか？</div>
+                  </div>
                 ) : (
-                  /* 詳細レビューフォーム */
-                  <div className="space-y-6">
-                    {/* 訪問情報 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          訪問日
-                        </label>
-                        <input
-                          type="date"
-                          value={detailedReview.visit_date}
-                          onChange={(e) => setDetailedReview({ ...detailedReview, visit_date: e.target.value })}
-                          max={new Date().toISOString().split('T')[0]}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
+                  reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-6 last:border-b-0">
+                      {/* レビューヘッダー */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="font-semibold">{review.reviewer_name}</div>
+                            {review.user_id === user?.id && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                あなたの投稿
+                              </span>
+                            )}
+                            {review.visit_purpose && (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+                                {VISIT_PURPOSES[review.visit_purpose]}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-gray-600">
+                            <span>{formatDate(review.created_at)}</span>
+                            {review.visit_date && (
+                              <span>訪問: {new Date(review.visit_date).toLocaleDateString('ja-JP')}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <RatingStars rating={review.rating} size="small" />
+                          <span className="font-semibold">{review.rating}</span>
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          訪問目的
-                        </label>
-                        <select
-                          value={detailedReview.visit_purpose}
-                          onChange={(e) => setDetailedReview({ ...detailedReview, visit_purpose: e.target.value as keyof typeof VISIT_PURPOSES })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        >
-                          {Object.entries(VISIT_PURPOSES).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* 詳細評価 */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-gray-700">詳細評価</label>
-                      <RatingStars
-                        rating={detailedReview.rating}
-                        onRatingChange={(rating) => setDetailedReview({ ...detailedReview, rating })}
-                        label="総合評価"
-                      />
-                      {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
-                        <RatingStars
-                          key={key}
-                          rating={detailedReview[`${key}_rating` as keyof typeof detailedReview] as number}
-                          onRatingChange={(rating) => setDetailedReview({ 
-                            ...detailedReview, 
-                            [`${key}_rating`]: rating 
-                          })}
-                          label={label}
-                        />
-                      ))}
-                    </div>
-
-                    {/* コメント */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        コメント * (20文字以上)
-                      </label>
-                      <textarea
-                        value={detailedReview.comment}
-                        onChange={(e) => setDetailedReview({ ...detailedReview, comment: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        rows={4}
-                        maxLength={1000}
-                        placeholder="お店の雰囲気、コーヒーの味、サービスなどについて詳しく教えてください..."
-                      />
-                      <div className="text-xs text-gray-500 mt-1 text-right">
-                        {detailedReview.comment.length}/1000文字
-                      </div>
-                    </div>
-
-                    {/* 画像アップロード */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        写真（最大5枚）
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageSelect}
-                        className="hidden"
-                        id="review-images"
-                        disabled={reviewImages.length >= 5}
-                      />
-                      <label
-                        htmlFor="review-images"
-                        className={`inline-block px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                          reviewImages.length >= 5
-                            ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed'
-                            : 'border-blue-300 hover:border-blue-400 text-blue-600'
-                        }`}
-                      >
-                        📷 写真を追加
-                      </label>
-                      
-                      {/* プレビュー */}
-                      {imagePreviewUrls.length > 0 && (
-                        <div className="mt-3 grid grid-cols-3 md:grid-cols-5 gap-2">
-                          {imagePreviewUrls.map((url, index) => (
-                            <div key={index} className="relative group">
-                              <Image
-                                src={url}
-                                alt={`プレビュー ${index + 1}`}
-                                width={100}
-                                height={100}
-                                className="w-full h-20 object-cover rounded"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                ×
-                              </button>
+                      {/* 詳細評価（ある場合） */}
+                      {review.atmosphere_rating && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 p-3 bg-gray-50 rounded">
+                          {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
+                            <div key={key} className="text-sm">
+                              <span className="text-gray-600">{label}:</span>
+                              <span className="ml-1 font-medium">
+                                ⭐{review[`${key}_rating` as keyof DetailedReview]}
+                              </span>
                             </div>
                           ))}
                         </div>
                       )}
-                    </div>
 
-                    {/* アップロード進捗 */}
-                    {uploadProgress > 0 && uploadProgress < 100 && (
-                      <div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
+                      {/* コメント */}
+                      <p className="text-gray-700 whitespace-pre-wrap mb-3 leading-relaxed">{review.comment}</p>
+
+                      {/* 画像 */}
+                      {review.images && review.images.length > 0 && (
+                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-3">
+                          {review.images.map((imageUrl, index) => (
+                            <Image
+                              key={index}
+                              src={imageUrl}
+                              alt={`レビュー画像 ${index + 1}`}
+                              width={120}
+                              height={120}
+                              className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-90"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                            />
+                          ))}
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">画像アップロード中... {uploadProgress.toFixed(0)}%</p>
-                      </div>
-                    )}
+                      )}
 
-                    {/* 送信ボタン */}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={submitDetailedReview}
-                        disabled={isSubmitting || detailedReview.comment.length < 20}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                      >
-                        {isSubmitting ? '投稿中...' : '詳細レビューを投稿'}
-                      </button>
-                      <button
-                        onClick={resetForm}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                        disabled={isSubmitting}
-                      >
-                        キャンセル
-                      </button>
+                      {/* アクション */}
+                      <div className="flex items-center gap-4 text-sm">
+                        <button className="text-gray-600 hover:text-blue-600 transition-colors">
+                          👍 役に立った ({review.helpful_count || 0})
+                        </button>
+                        <button className="text-gray-600 hover:text-red-600 transition-colors">
+                          🚩 報告
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ))
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {activeTab === 'add' && showAddForm && user && (
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">レビューを投稿</h3>
+              
+              {/* レビュータイプ選択 */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium mb-3">レビュータイプを選択</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={!useDetailedReview}
+                      onChange={() => setUseDetailedReview(false)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">基本レビュー（簡単）</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={useDetailedReview}
+                      onChange={() => setUseDetailedReview(true)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">詳細レビュー（写真・詳細評価付き）</span>
+                  </label>
+                </div>
+              </div>
+
+              {!useDetailedReview ? (
+                /* 基本レビューフォーム */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      お名前 *
+                    </label>
+                    <input
+                      type="text"
+                      value={basicReview.reviewer_name}
+                      onChange={(e) => setBasicReview({ ...basicReview, reviewer_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      評価 *
+                    </label>
+                    <RatingStars
+                      rating={basicReview.rating}
+                      onRatingChange={(rating) => setBasicReview({ ...basicReview, rating })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      コメント * (10文字以上)
+                    </label>
+                    <textarea
+                      value={basicReview.comment}
+                      onChange={(e) => setBasicReview({ ...basicReview, comment: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      rows={4}
+                      maxLength={500}
+                      placeholder="このお店の感想を教えてください..."
+                    />
+                    <div className="text-xs text-gray-500 mt-1 text-right">
+                      {basicReview.comment.length}/500文字
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={submitBasicReview}
+                      disabled={isSubmitting || basicReview.comment.length < 10}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {isSubmitting ? '投稿中...' : '投稿する'}
+                    </button>
+                    <button
+                      onClick={resetForm}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                      disabled={isSubmitting}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* 詳細レビューフォーム */
+                <div className="space-y-6">
+                  {/* 訪問情報 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        訪問日
+                      </label>
+                      <input
+                        type="date"
+                        value={detailedReview.visit_date}
+                        onChange={(e) => setDetailedReview({ ...detailedReview, visit_date: e.target.value })}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        訪問目的
+                      </label>
+                      <select
+                        value={detailedReview.visit_purpose}
+                        onChange={(e) => setDetailedReview({ ...detailedReview, visit_purpose: e.target.value as keyof typeof VISIT_PURPOSES })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        {Object.entries(VISIT_PURPOSES).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 詳細評価 */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">詳細評価</label>
+                    <RatingStars
+                      rating={detailedReview.rating}
+                      onRatingChange={(rating) => setDetailedReview({ ...detailedReview, rating })}
+                      label="総合評価"
+                    />
+                    {Object.entries(RATING_CATEGORIES).map(([key, label]) => (
+                      <RatingStars
+                        key={key}
+                        rating={detailedReview[`${key}_rating` as keyof typeof detailedReview] as number}
+                        onRatingChange={(rating) => setDetailedReview({ 
+                          ...detailedReview, 
+                          [`${key}_rating`]: rating 
+                        })}
+                        label={label}
+                      />
+                    ))}
+                  </div>
+
+                  {/* コメント */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      コメント * (20文字以上)
+                    </label>
+                    <textarea
+                      value={detailedReview.comment}
+                      onChange={(e) => setDetailedReview({ ...detailedReview, comment: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      rows={4}
+                      maxLength={1000}
+                      placeholder="お店の雰囲気、コーヒーの味、サービスなどについて詳しく教えてください..."
+                    />
+                    <div className="text-xs text-gray-500 mt-1 text-right">
+                      {detailedReview.comment.length}/1000文字
+                    </div>
+                  </div>
+
+                  {/* 画像アップロード */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      写真（最大5枚）
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageSelect}
+                      className="hidden"
+                      id="review-images"
+                      disabled={reviewImages.length >= 5}
+                    />
+                    <label
+                      htmlFor="review-images"
+                      className={`inline-block px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                        reviewImages.length >= 5
+                          ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed'
+                          : 'border-blue-300 hover:border-blue-400 text-blue-600'
+                      }`}
+                    >
+                      📷 写真を追加
+                    </label>
+                    
+                    {/* プレビュー */}
+                    {imagePreviewUrls.length > 0 && (
+                      <div className="mt-3 grid grid-cols-3 md:grid-cols-5 gap-2">
+                        {imagePreviewUrls.map((url, index) => (
+                          <div key={index} className="relative group">
+                            <Image
+                              src={url}
+                              alt={`プレビュー ${index + 1}`}
+                              width={100}
+                              height={100}
+                              className="w-full h-20 object-cover rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* アップロード進捗 */}
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">画像アップロード中... {uploadProgress.toFixed(0)}%</p>
+                    </div>
+                  )}
+
+                  {/* 送信ボタン */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={submitDetailedReview}
+                      disabled={isSubmitting || detailedReview.comment.length < 20}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {isSubmitting ? '投稿中...' : '詳細レビューを投稿'}
+                    </button>
+                    <button
+                      onClick={resetForm}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                      disabled={isSubmitting}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* 認証モーダル */}
-      <AuthModal 
-        title="レビュー投稿にはサインインが必要です"
-        message="コミュニティの品質維持のため、レビュー投稿にはサインインをお願いしています。"
-      />
-    </>
+    </div>
   )
 }

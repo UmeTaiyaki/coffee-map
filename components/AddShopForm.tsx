@@ -1,4 +1,4 @@
-// components/AddShopForm.tsx - 統合版（UpdatedAddShopFormベース）
+// components/AddShopForm.tsx - サインインボタン削除版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -6,8 +6,6 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
-import { useAuthModal } from './AuthModal'
-import UserMenu from './UserMenu'
 import { showToast } from './ToastNotification'
 
 // 型定義
@@ -345,7 +343,6 @@ interface AddShopFormProps {
 
 export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
   const { user } = useUser()
-  const { openAuthModal, AuthModal } = useAuthModal()
 
   // フォーム状態
   const [formData, setFormData] = useState<ShopFormData>(DEFAULT_FORM_DATA)
@@ -366,7 +363,7 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
   // 住所検索
   const handleGeocodeAndShowMap = useCallback(async () => {
     if (!user) {
-      openAuthModal()
+      showToast('店舗の登録にはサインインが必要です。右上のサインインボタンからログインしてください。', 'warning', 6000)
       return
     }
 
@@ -410,14 +407,14 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
     } finally {
       setIsGeocoding(false)
     }
-  }, [formData.address, formData.name, user, openAuthModal])
+  }, [formData.address, formData.name, user])
 
   // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!user) {
-      openAuthModal()
+      showToast('店舗の登録にはサインインが必要です。右上のサインインボタンからログインしてください。', 'warning', 6000)
       return
     }
 
@@ -518,12 +515,11 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">🏪 新しい店舗を追加</h2>
-        <UserMenu />
       </div>
       
-      {/* 認証案内 */}
+      {/* 認証案内 - サインインボタンを削除 */}
       {!user && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3">
@@ -531,14 +527,8 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
             <div>
               <h3 className="text-blue-800 font-medium mb-1">店舗登録にはサインインが必要です</h3>
               <p className="text-blue-700 text-sm mb-3">
-                Googleアカウントまたは匿名ログインで簡単にサインインできます。
+                右上のサインインボタンからGoogleアカウントでサインインしてください。
               </p>
-              <button
-                onClick={openAuthModal}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition-colors"
-              >
-                サインインする
-              </button>
             </div>
           </div>
         </div>
@@ -782,11 +772,6 @@ export default function AddShopForm({ onShopAdded }: AddShopFormProps) {
           ) : !markerPosition ? '🗺️ まず地図で位置を確認してください' : '🏪 店舗を登録'}
         </button>
       </form>
-
-      <AuthModal 
-        title="店舗登録にはサインインが必要です"
-        message="コミュニティの品質維持のため、店舗情報の登録にはサインインをお願いしています。"
-      />
     </div>
   )
 }
