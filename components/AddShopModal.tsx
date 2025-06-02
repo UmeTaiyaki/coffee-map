@@ -1,4 +1,4 @@
-// components/AddShopModal.tsx
+// components/AddShopModal.tsx - UI改善版
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -442,7 +442,7 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
   const isFormDisabled = !user || isSubmitting
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* ヘッダー */}
         <div className="flex items-center justify-between p-6 border-b">
@@ -566,6 +566,35 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
                 </div>
               </div>
 
+              {/* 地図（住所の直下に表示） */}
+              {showMap && markerPosition && user && (
+                <div className="mt-4">
+                  <div className="h-80 w-full rounded-lg overflow-hidden border">
+                    <MapContainer 
+                      center={mapCenter}
+                      zoom={16}
+                      style={{ height: '100%', width: '100%' }}
+                    >
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; OpenStreetMap contributors'
+                      />
+                      <DraggableMarker 
+                        position={markerPosition} 
+                        onPositionChange={(lat, lng) => setMarkerPosition([lat, lng])}
+                      />
+                      <MapClickHandler 
+                        onLocationSelect={(lat, lng) => setMarkerPosition([lat, lng])} 
+                      />
+                    </MapContainer>
+                  </div>
+                  
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                    💡 赤いピンをドラッグするか、地図をクリックして正確な位置に調整してください
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   価格帯
@@ -651,35 +680,6 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
               />
               <p className="text-xs text-gray-500 mt-1">{formData.description.length}/500文字</p>
             </FormSection>
-
-            {/* 地図（位置確認後に表示） */}
-            {showMap && markerPosition && user && (
-              <FormSection title="位置確認" icon="🗺️">
-                <div className="h-80 w-full rounded-lg overflow-hidden border">
-                  <MapContainer 
-                    center={mapCenter}
-                    zoom={16}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; OpenStreetMap contributors'
-                    />
-                    <DraggableMarker 
-                      position={markerPosition} 
-                      onPositionChange={(lat, lng) => setMarkerPosition([lat, lng])}
-                    />
-                    <MapClickHandler 
-                      onLocationSelect={(lat, lng) => setMarkerPosition([lat, lng])} 
-                    />
-                  </MapContainer>
-                </div>
-                
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                  💡 赤いピンをドラッグするか、地図をクリックして正確な位置に調整してください
-                </div>
-              </FormSection>
-            )}
 
             {/* フッター・送信ボタン */}
             <div className="border-t pt-6">

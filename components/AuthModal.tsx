@@ -1,4 +1,4 @@
-// components/AuthModal.tsx
+// components/AuthModal.tsx - 完全版
 'use client'
 import React, { useState, useEffect } from 'react'
 import { useUser } from '../contexts/UserContext'
@@ -70,16 +70,16 @@ export default function AuthModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{ 
-        zIndex: 10000,
-        backdropFilter: 'blur(2px)'
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)'
       }}
       onClick={handleBackdropClick}
     >
       <div 
         className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl transform transition-all relative"
-        style={{ zIndex: 10001 }}
+        style={{ zIndex: 10000 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー */}

@@ -1,7 +1,7 @@
-// components/ShopSidePanel.tsx
+// components/ShopSidePanel.tsx - 完全版
 import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import ReviewModal from './ReviewModal'  // DetailedReviewModal → ReviewModal に変更
+import ReviewModal from './ReviewModal'
 
 // 型定義
 interface Shop {
@@ -161,7 +161,7 @@ export default function ShopSidePanel({
       <div
         ref={panelRef}
         className={`
-          fixed top-0 right-0 h-full bg-white shadow-2xl z-[1001]
+          fixed top-0 right-0 h-full bg-white shadow-2xl z-[600]
           transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
           border-l border-gray-200
