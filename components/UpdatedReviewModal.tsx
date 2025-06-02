@@ -1,4 +1,4 @@
-// components/UpdatedReviewModal.tsx - 未使用変数修正版
+// components/UpdatedReviewModal.tsx
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
@@ -68,7 +68,7 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
 
     // ユーザー情報から初期値を設定
     setNewReview({
-      reviewer_name: user.nickname || '匿名ユーザー',
+      reviewer_name: user.nickname || 'Coffee Lover',
       rating: 5,
       comment: ''
     })
@@ -93,13 +93,11 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
       return
     }
 
-    // 既存レビューチェック（認証済みユーザーのみ）
-    if (!user.is_anonymous) {
-      const existingReview = reviews.find(review => review.user_id === user.id)
-      if (existingReview) {
-        setError('既にこの店舗にレビューを投稿済みです。編集機能は今後追加予定です。')
-        return
-      }
+    // 既存レビューチェック
+    const existingReview = reviews.find(review => review.user_id === user.id)
+    if (existingReview) {
+      setError('既にこの店舗にレビューを投稿済みです。編集機能は今後追加予定です。')
+      return
     }
 
     setSubmitLoading(true)
@@ -122,7 +120,7 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
 
       // フォームをリセット
       setNewReview({ 
-        reviewer_name: user.nickname || '匿名ユーザー', 
+        reviewer_name: user.nickname || 'Coffee Lover', 
         rating: 5, 
         comment: '' 
       })
@@ -186,8 +184,7 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
   }
 
   // ユーザーのレビュー有無チェック
-  const userHasReviewed = user && !user.is_anonymous && 
-    reviews.some(review => review.user_id === user.id)
+  const userHasReviewed = user && reviews.some(review => review.user_id === user.id)
 
   useEffect(() => {
     if (isOpen && shopId) {
@@ -248,7 +245,7 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-blue-800 text-sm font-medium">レビューを投稿するにはサインインが必要です</p>
-                      <p className="text-blue-600 text-xs mt-1">Googleアカウントまたは匿名ログインが利用できます</p>
+                      <p className="text-blue-600 text-xs mt-1">Googleアカウントで簡単にサインインできます</p>
                     </div>
                     <button
                       onClick={openAuthModal}
@@ -280,7 +277,7 @@ export default function UpdatedReviewModal({ shopId, shopName, isOpen, onClose }
                       maxLength={100}
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      {user.is_anonymous ? '匿名ユーザーとして投稿されます' : 'Googleアカウント連携済み'}
+                      Googleアカウント連携済み
                     </p>
                   </div>
 

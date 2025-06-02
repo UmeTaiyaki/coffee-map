@@ -1,4 +1,4 @@
-// components/SecureAddShopForm.tsx - ビルドエラー修正版
+// components/SecureAddShopForm.tsx
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -295,22 +295,6 @@ function SecureAddShopForm({ onShopAdded }: AddShopFormProps) {
       return false
     }
 
-    // 匿名ユーザーの制限チェック
-    if (user.is_anonymous) {
-      const today = new Date().toDateString()
-      const todayShopsKey = `anonymous_shops_${user.id}_${today}`
-      const todayShops = parseInt(localStorage.getItem(todayShopsKey) || '0')
-      
-      if (todayShops >= 3) { // 匿名ユーザーは1日3店舗まで
-        await logSecurityEvent('anonymous_daily_limit_exceeded', {
-          user_id: user.id,
-          today_shops: todayShops
-        })
-        setError('匿名ユーザーは1日3店舗まで登録できます。Googleアカウントでサインインするとより多く登録できます。')
-        return false
-      }
-    }
-
     return true
   }, [user, security, validateUserAction, logSecurityEvent, formData])
 
@@ -461,14 +445,6 @@ function SecureAddShopForm({ onShopAdded }: AddShopFormProps) {
         }
       }
 
-      // 匿名ユーザーの日次カウンターを更新
-      if (user!.is_anonymous) {
-        const today = new Date().toDateString()
-        const todayShopsKey = `anonymous_shops_${user!.id}_${today}`
-        const todayShops = parseInt(localStorage.getItem(todayShopsKey) || '0')
-        localStorage.setItem(todayShopsKey, (todayShops + 1).toString())
-      }
-
       await logSecurityEvent('shop_creation_success', {
         user_id: user!.id,
         shop_id: shopId
@@ -554,7 +530,7 @@ function SecureAddShopForm({ onShopAdded }: AddShopFormProps) {
                 />
               )}
               <span className="text-gray-600">
-                {user.is_anonymous ? '👤 匿名ユーザー' : `👤 ${user.nickname}`}
+                👤 {user.nickname || 'Coffee Lover'}
               </span>
               <span className={`px-2 py-1 rounded-full text-xs ${
                 user.security_level === 3 ? 'bg-red-100 text-red-800' :
@@ -563,7 +539,7 @@ function SecureAddShopForm({ onShopAdded }: AddShopFormProps) {
               }`}>
                 {user.role === 'admin' ? '管理者' : 
                  user.role === 'moderator' ? 'モデレーター' : 
-                 user.is_anonymous ? '匿名' : '認証済み'}
+                 '認証済み'}
               </span>
             </div>
           ) : (

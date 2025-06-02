@@ -1,3 +1,4 @@
+// components/UpdatedMap.tsx
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
@@ -14,7 +15,7 @@ import { sortShops, resetRandomSort } from '../utils/sorting'
 import { showToast } from './ToastNotification'
 import type { FilterState, SortState } from '../types/filters'
 
-// Shop関連の型定義を直接定義
+// Shop関連の型定義
 interface Shop {
   id: number
   name: string
@@ -306,7 +307,7 @@ function StatsBar({
         
         {user && (
           <span className="text-purple-600">
-            {user.is_anonymous ? '👤 匿名ユーザー' : `👤 ${user.nickname}`}
+            👤 {user.nickname || 'Coffee Lover'}
           </span>
         )}
       </div>
@@ -498,7 +499,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
     return sum / reviews.length
   }, [])
 
-  // お気に入り機能
+  // お気に入り機能（修正版）
   const toggleFavorite = useCallback(async (shopId: number) => {
     if (!user) {
       openAuthModal()
@@ -506,41 +507,26 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
     }
 
     try {
-      if (user.is_anonymous) {
-        // 匿名ユーザーはローカルストレージ
+      const isFavorite = favorites.has(shopId)
+      
+      if (isFavorite) {
+        await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('shop_id', shopId)
+        
         setFavorites(prev => {
           const newFavorites = new Set(prev)
-          if (newFavorites.has(shopId)) {
-            newFavorites.delete(shopId)
-          } else {
-            newFavorites.add(shopId)
-          }
-          localStorage.setItem('coffee-map-favorites', JSON.stringify([...newFavorites]))
+          newFavorites.delete(shopId)
           return newFavorites
         })
       } else {
-        // 認証済みユーザーはデータベース
-        const isFavorite = favorites.has(shopId)
+        await supabase
+          .from('user_favorites')
+          .insert([{ user_id: user.id, shop_id: shopId }])
         
-        if (isFavorite) {
-          await supabase
-            .from('user_favorites')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('shop_id', shopId)
-          
-          setFavorites(prev => {
-            const newFavorites = new Set(prev)
-            newFavorites.delete(shopId)
-            return newFavorites
-          })
-        } else {
-          await supabase
-            .from('user_favorites')
-            .insert([{ user_id: user.id, shop_id: shopId }])
-          
-          setFavorites(prev => new Set([...prev, shopId]))
-        }
+        setFavorites(prev => new Set([...prev, shopId]))
       }
     } catch (error) {
       console.error('お気に入り更新エラー:', error)
@@ -548,7 +534,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
     }
   }, [user, favorites, openAuthModal])
 
-  // お気に入り読み込み
+  // お気に入り読み込み（修正版）
   const loadFavorites = useCallback(async () => {
     if (!user) {
       // 未認証時はローカルストレージから読み込み
@@ -560,7 +546,7 @@ export default function UpdatedMap({ refreshTrigger }: MapProps) {
       } catch (error) {
         console.error('ローカルお気に入り読み込みエラー:', error)
       }
-    } else if (!user.is_anonymous) {
+    } else {
       // 認証済みユーザーはデータベースから読み込み
       try {
         const { data } = await supabase

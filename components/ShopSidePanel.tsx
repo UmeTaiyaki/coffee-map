@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import DetailedReviewModal from './DetailedReviewModal'
 
-// 型定義を直接インポートではなく、必要な型を定義
+// 型定義
 interface Shop {
   id: number
   name: string
@@ -152,6 +152,10 @@ export default function ShopSidePanel({
     return `${todayHours.open_time} - ${todayHours.close_time}`
   }
 
+  // ShopImageの型を正しく使用
+  const mainImage = shop.images?.find(img => img.is_main) || shop.images?.[0]
+  const imageUrl = mainImage?.image_url || shop.main_image_url
+
   return (
     <>
       <div
@@ -207,10 +211,10 @@ export default function ShopSidePanel({
         {/* コンテンツエリア - スクロール可能 */}
         <div className="flex-1 overflow-y-auto">
           {/* メイン画像 */}
-          {shop.main_image_url && (
+          {imageUrl && (
             <div className="relative">
               <Image
-                src={shop.main_image_url}
+                src={imageUrl}
                 alt={shop.name}
                 width={400}
                 height={192}
@@ -390,6 +394,33 @@ export default function ShopSidePanel({
                   <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
                     {shop.description}
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* 画像ギャラリー */}
+            {shop.images && shop.images.length > 1 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  📷 写真
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {shop.images.slice(0, 4).map((image, index) => (
+                    <div key={image.id} className="relative">
+                      <Image
+                        src={image.image_url}
+                        alt={`${shop.name} 写真 ${index + 1}`}
+                        width={200}
+                        height={150}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      {image.created_at && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg">
+                          {new Date(image.created_at).toLocaleDateString('ja-JP')}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
