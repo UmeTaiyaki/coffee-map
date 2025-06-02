@@ -10,7 +10,6 @@ export interface User {
   nickname?: string
   avatar_url?: string
   full_name?: string
-  is_anonymous: boolean
   created_at?: string
   last_active?: string
   role?: 'user' | 'moderator' | 'admin'
@@ -35,10 +34,8 @@ interface UserContextType {
   loading: boolean
   security: SecurityContext
   signInWithGoogle: () => Promise<void>
-  signInAnonymously: (nickname: string) => Promise<void>
   signOut: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
-  upgradeFromAnonymous: () => Promise<void>
   refreshUser: () => Promise<void>
   validateUserAction: (action: string, resourceOwner?: string) => boolean
   logSecurityEvent: (event: string, details?: any) => Promise<void>
@@ -137,21 +134,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   // Supabaseユーザーを内部User型に変換
-  const convertSupabaseUser = useCallback((supabaseUser: SupabaseUser, isAnonymous = false): User => {
+  const convertSupabaseUser = useCallback((supabaseUser: SupabaseUser): User => {
     const metadata = supabaseUser.user_metadata || {}
     
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
-      nickname: metadata.nickname || metadata.name || metadata.full_name?.split(' ')[0] || '匿名ユーザー',
+      nickname: metadata.nickname || metadata.name || metadata.full_name?.split(' ')[0] || '名無しユーザー',
       avatar_url: metadata.avatar_url || metadata.picture,
       full_name: metadata.full_name || metadata.name,
-      is_anonymous: isAnonymous,
       created_at: supabaseUser.created_at,
       last_active: new Date().toISOString(),
       role: metadata.role || 'user',
-      is_verified: !isAnonymous && !!supabaseUser.email_confirmed_at,
-      security_level: isAnonymous ? 1 : (metadata.role === 'admin' ? 3 : 2)
+      is_verified: !!supabaseUser.email_confirmed_at,
+      security_level: metadata.role === 'admin' ? 3 : 2
     }
   }, [])
 
@@ -178,7 +174,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           nickname: userData.nickname,
           avatar_url: userData.avatar_url,
           full_name: userData.full_name,
-          is_anonymous: userData.is_anonymous,
           last_active: new Date().toISOString(),
           user_metadata: {
             role: userData.role,
@@ -250,48 +245,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [logSecurityEvent])
 
-  // 匿名サインイン
-  const signInAnonymously = useCallback(async (nickname: string): Promise<void> => {
-    try {
-      setLoading(true)
-      
-      const validationError = validateNickname(nickname)
-      if (validationError) throw new Error(validationError)
-
-      const sanitizedNickname = sanitizeInput(nickname)
-      await logSecurityEvent('anonymous_login_attempt', { nickname: sanitizedNickname })
-      
-      const { data, error } = await supabase.auth.signInAnonymously()
-      
-      if (error) throw error
-      
-      if (data.user) {
-        await supabase.auth.updateUser({
-          data: { 
-            nickname: sanitizedNickname,
-            is_anonymous: true,
-            security_level: 1
-          }
-        })
-
-        const userData = convertSupabaseUser(data.user, true)
-        userData.nickname = sanitizedNickname
-        
-        setUser(userData)
-        await saveUserProfile(userData)
-        await migrateFavorites(userData.id)
-        await logSecurityEvent('anonymous_login_success', { user_id: userData.id })
-      }
-    } catch (error) {
-      await logSecurityEvent('anonymous_login_failed', { 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      })
-      throw new Error(error instanceof Error ? error.message : '匿名サインインに失敗しました')
-    } finally {
-      setLoading(false)
-    }
-  }, [convertSupabaseUser, saveUserProfile, migrateFavorites, logSecurityEvent])
-
   // サインアウト
   const signOut = useCallback(async (): Promise<void> => {
     try {
@@ -358,36 +311,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [user, checkRateLimit, saveUserProfile, logSecurityEvent])
 
-  // 匿名ユーザーのアップグレード
-  const upgradeFromAnonymous = useCallback(async (): Promise<void> => {
-    if (!user || !user.is_anonymous) {
-      throw new Error('匿名ユーザーではありません')
-    }
-
-    try {
-      await logSecurityEvent('account_upgrade_attempt', { user_id: user.id })
-      await signInWithGoogle()
-      await logSecurityEvent('account_upgrade_success', { user_id: user.id })
-    } catch (error) {
-      await logSecurityEvent('account_upgrade_failed', { 
-        user_id: user.id, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      })
-      throw new Error('アカウントのアップグレードに失敗しました')
-    }
-  }, [user, signInWithGoogle, logSecurityEvent])
-
   // ユーザー情報更新
   const refreshUser = useCallback(async (): Promise<void> => {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
       if (currentUser) {
-        const isAnonymous = currentUser.is_anonymous || 
-                          currentUser.user_metadata?.is_anonymous || 
-                          false
-                          
-        const userData = convertSupabaseUser(currentUser, isAnonymous)
+        const userData = convertSupabaseUser(currentUser)
         setUser(userData)
         await saveUserProfile(userData)
       }
@@ -441,17 +371,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setSession(session)
         
         if (session?.user) {
-          const isAnonymous = session.user.is_anonymous || 
-                            session.user.user_metadata?.is_anonymous || 
-                            false
-                            
-          const userData = convertSupabaseUser(session.user, isAnonymous)
+          const userData = convertSupabaseUser(session.user)
           setUser(userData)
           await saveUserProfile(userData)
-          
-          if (!isAnonymous) {
-            await migrateFavorites(userData.id)
-          }
+          await migrateFavorites(userData.id)
         }
         
       } catch (error) {
@@ -471,15 +394,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setSession(session)
       
       if (session?.user) {
-        const isAnonymous = session.user.is_anonymous || 
-                          session.user.user_metadata?.is_anonymous || 
-                          false
-                          
-        const userData = convertSupabaseUser(session.user, isAnonymous)
+        const userData = convertSupabaseUser(session.user)
         setUser(userData)
         await saveUserProfile(userData)
         
-        if (event === 'SIGNED_IN' && !isAnonymous) {
+        if (event === 'SIGNED_IN') {
           await migrateFavorites(userData.id)
         }
       } else {
@@ -501,10 +420,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     loading,
     security,
     signInWithGoogle,
-    signInAnonymously,
     signOut,
     updateProfile,
-    upgradeFromAnonymous,
     refreshUser,
     validateUserAction,
     logSecurityEvent

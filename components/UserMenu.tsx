@@ -1,4 +1,4 @@
-// components/UserMenu.tsx - ローディング状態修正版
+// components/UserMenu.tsx
 'use client'
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
@@ -99,7 +99,6 @@ export default function UserMenu() {
         <AuthModal 
           title="Coffee Mapにサインイン"
           message="お気に入り店舗の保存やレビューの投稿をするにはサインインしてください。"
-          showAnonymousOption={true}
         />
       </div>
     )
@@ -125,12 +124,9 @@ export default function UserMenu() {
               height={32}
               className="w-8 h-8 rounded-full object-cover"
               priority
-            />
-          ) : (
+            />) : (
             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-              <span className="text-gray-600 text-sm">
-                {user.is_anonymous ? '👤' : '👤'}
-              </span>
+              <span className="text-gray-600 text-sm">👤</span>
             </div>
           )}
         </div>
@@ -138,11 +134,9 @@ export default function UserMenu() {
         {/* ユーザー情報 */}
         <div className="flex-1 text-left min-w-0 hidden sm:block">
           <div className="font-medium text-gray-900 text-sm truncate">
-            {user.nickname || '匿名ユーザー'}
+            {user.nickname || '名無しユーザー'}
           </div>
-          <div className="text-xs text-gray-500">
-            {user.is_anonymous ? '匿名' : '認証済み'}
-          </div>
+          <div className="text-xs text-gray-500">認証済み</div>
         </div>
 
         {/* ドロップダウン矢印 */}
@@ -180,16 +174,14 @@ export default function UserMenu() {
                   />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-                    <span className="text-gray-600 text-lg">
-                      {user.is_anonymous ? '👤' : '👤'}
-                    </span>
+                    <span className="text-gray-600 text-lg">👤</span>
                   </div>
                 )}
               </div>
               
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-gray-900 truncate">
-                  {user.nickname || '匿名ユーザー'}
+                  {user.nickname || '名無しユーザー'}
                 </div>
                 {user.email && (
                   <div className="text-sm text-gray-500 truncate">
@@ -197,12 +189,8 @@ export default function UserMenu() {
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    user.is_anonymous 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {user.is_anonymous ? '👤 匿名' : '✓ 認証済み'}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    ✓ 認証済み
                   </span>
                   {user.role === 'admin' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -259,24 +247,6 @@ export default function UserMenu() {
               <span className="text-gray-400">🏪</span>
               投稿した店舗
             </button>
-
-            {/* 匿名ユーザーのアップグレード */}
-            {user.is_anonymous && (
-              <>
-                <hr className="my-2" />
-                <button
-                  className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-3"
-                  onClick={() => {
-                    setIsOpen(false)
-                    // TODO: アカウントアップグレード機能
-                    alert('Googleアカウント連携機能は今後実装予定です')
-                  }}
-                >
-                  <span className="text-blue-500">🔗</span>
-                  Googleアカウントと連携
-                </button>
-              </>
-            )}
 
             {/* 管理者専用メニュー */}
             {user.role === 'admin' && (
