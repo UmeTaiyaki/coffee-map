@@ -1,7 +1,7 @@
 // components/ShopSidePanel.tsx
 import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import DetailedReviewModal from './DetailedReviewModal'
+import ReviewModal from './ReviewModal'  // DetailedReviewModal → ReviewModal に変更
 
 // 型定義
 interface Shop {
@@ -463,9 +463,9 @@ export default function ShopSidePanel({
         </div>
       </div>
 
-      {/* 詳細レビューモーダル */}
+      {/* 統合されたレビューモーダル */}
       {shop && (
-        <DetailedReviewModal
+        <ReviewModal
           shopId={shop.id}
           shopName={shop.name}
           isOpen={showReviewModal}
