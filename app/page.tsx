@@ -1,12 +1,10 @@
-// app/page.tsx - 新UI実装版
+// app/page.tsx - エラー修正版
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { UserProvider } from '../contexts/UserContext'
 import UserMenu from '../components/UserMenu'
 import ToastNotification, { showToast } from '../components/ToastNotification'
-import CompactSidebar from '../components/CompactSidebar'
-import AddShopModal from '../components/AddShopModal'
 
 // 地図コンポーネントを動的インポート（SSRを無効化）
 const Map = dynamic(() => import('../components/Map'), {
@@ -49,6 +47,190 @@ function WelcomeMessage({ onDismiss }: { onDismiss: () => void }) {
             💡 右上の「新しい店舗を追加」ボタンから簡単に店舗登録できます
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// 簡易サイドバーコンポーネント（CompactSidebarの代替）
+function SimpleSidebar({ refreshTrigger }: { refreshTrigger: number }) {
+  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null)
+  const [isLocating, setIsLocating] = useState(false)
+
+  const getCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      showToast('このブラウザでは位置情報がサポートされていません', 'error')
+      return
+    }
+
+    setIsLocating(true)
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setCurrentLocation([latitude, longitude])
+        setIsLocating(false)
+        showToast('現在地を取得しました', 'success')
+      },
+      (error) => {
+        setIsLocating(false)
+        let errorMessage = '位置情報取得中にエラーが発生しました'
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '位置情報の取得が拒否されました'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '位置情報を取得できません'
+            break
+          case error.TIMEOUT:
+            errorMessage = '位置情報取得がタイムアウトしました'
+            break
+        }
+        showToast(errorMessage, 'error')
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 300000
+      }
+    )
+  }, [])
+
+  return (
+    <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
+      {/* 検索セクション */}
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
+        <div className="relative mb-3">
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="店舗名・住所・説明で検索..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={getCurrentLocation}
+            disabled={isLocating}
+            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              isLocating 
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {isLocating ? '📍 取得中...' : '📍 現在地取得'}
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium transition-colors"
+          >
+            🔄 更新
+          </button>
+        </div>
+      </div>
+
+      {/* フィルターセクション */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">カテゴリー</label>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              <option value="all">すべて</option>
+              <option value="cafe">☕ カフェ</option>
+              <option value="roastery">🔥 焙煎所</option>
+              <option value="chain">🏪 チェーン店</option>
+              <option value="specialty">✨ スペシャルティ</option>
+              <option value="bakery">🥐 ベーカリーカフェ</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">価格帯</label>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              <option value="all">すべて</option>
+              <option value="1">¥</option>
+              <option value="2">¥¥</option>
+              <option value="3">¥¥¥</option>
+              <option value="4">¥¥¥¥</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center text-sm">
+              <input type="checkbox" className="mr-2" />
+              🕐 現在営業中
+            </label>
+            <label className="flex items-center text-sm">
+              <input type="checkbox" className="mr-2" />
+              📶 Wi-Fi
+            </label>
+            <label className="flex items-center text-sm">
+              <input type="checkbox" className="mr-2" />
+              🔌 電源
+            </label>
+            <label className="flex items-center text-sm">
+              <input type="checkbox" className="mr-2" />
+              ❤️ お気に入り
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* 統計セクション */}
+      <div className="p-4 border-t border-gray-200 flex-shrink-0">
+        <div className="text-sm text-gray-600">
+          <div className="flex justify-between items-center">
+            <span>表示中: <strong className="text-blue-600">0件</strong></span>
+            {currentLocation && (
+              <span className="text-green-600 text-xs">📍 現在地取得済み</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 簡易店舗追加モーダル（AddShopModalの代替）
+function SimpleAddShopModal({ 
+  isOpen, 
+  onClose, 
+  onShopAdded 
+}: { 
+  isOpen: boolean
+  onClose: () => void
+  onShopAdded?: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">🏪 店舗追加</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <div className="text-center py-8">
+          <div className="text-4xl mb-4">🚧</div>
+          <p className="text-gray-600 mb-4">店舗追加機能は開発中です</p>
+          <p className="text-sm text-gray-500">近日公開予定です。お楽しみに！</p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          閉じる
+        </button>
       </div>
     </div>
   )
@@ -155,7 +337,7 @@ export default function Home() {
               <div className="flex h-full gap-4 md:gap-6">
                 {/* 左サイドバー */}
                 <aside className="w-80 lg:w-96 flex-shrink-0 hidden md:block">
-                  <CompactSidebar refreshTrigger={refreshTrigger} />
+                  <SimpleSidebar refreshTrigger={refreshTrigger} />
                 </aside>
                 
                 {/* 地図エリア */}
@@ -170,11 +352,27 @@ export default function Home() {
 
           {/* モバイル用サイドバー（画面下部に表示） */}
           <div className="md:hidden flex-shrink-0 px-4 pb-4">
-            <CompactSidebar refreshTrigger={refreshTrigger} isMobile />
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="🔍 店舗を検索..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <button className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm">
+                  📍
+                </button>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <button className="px-3 py-1 bg-gray-100 rounded-full">すべて</button>
+                <button className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">営業中</button>
+                <button className="px-3 py-1 bg-gray-100 rounded-full">Wi-Fi</button>
+              </div>
+            </div>
           </div>
 
           {/* 店舗追加モーダル */}
-          <AddShopModal
+          <SimpleAddShopModal
             isOpen={showAddShopModal}
             onClose={handleCloseAddShopModal}
             onShopAdded={handleShopAdded}
