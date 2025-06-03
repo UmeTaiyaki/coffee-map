@@ -61,32 +61,6 @@ const config: Config = {
           900: '#745d1a',
           950: '#44350a',
         },
-        
-        // ライトモード専用色
-        'light': {
-          'primary': '#F8F5F0',
-          'secondary': '#FFFFFF',
-          'tertiary': '#FFF8F0',
-          'border': '#E2E8F0',
-          'text': {
-            'primary': '#2D3748',
-            'secondary': '#4A5568',
-            'muted': '#718096',
-          }
-        },
-        
-        // ダークモード専用色
-        'dark': {
-          'primary': '#0F0F0F',
-          'secondary': '#1A1A1A',
-          'tertiary': '#2D2D2D',
-          'border': 'rgba(255, 255, 255, 0.1)',
-          'text': {
-            'primary': '#FFFFFF',
-            'secondary': '#CCCCCC',
-            'muted': '#999999',
-          }
-        }
       },
       
       // グラスモーフィズム効果用のbackdropBlur
@@ -343,7 +317,7 @@ const config: Config = {
   },
   plugins: [
     // カスタムプラグイン：グラスモーフィズム
-    function({ addUtilities, theme }) {
+    function({ addUtilities }: { addUtilities: (utilities: Record<string, any>) => void }) {
       const newUtilities = {
         '.glass': {
           background: 'rgba(255, 255, 255, 0.1)',
@@ -426,7 +400,7 @@ const config: Config = {
     },
     
     // カスタムプラグイン：レスポンシブタイポグラフィ
-    function({ addUtilities }) {
+    function({ addUtilities }: { addUtilities: (utilities: Record<string, any>) => void }) {
       const responsiveText = {
         '.text-responsive-xs': {
           fontSize: '0.75rem',
