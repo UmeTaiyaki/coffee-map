@@ -1,12 +1,28 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // Next.js 15の新しい設定名
-  serverExternalPackages: ['leaflet'],
   // 静的アセットの最適化
   images: {
-    unoptimized: true
+    unoptimized: false,
+    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
+  
+  // TypeScript設定
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
+  // ESLint設定
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  
   // CORS設定を追加
   async headers() {
     return [
@@ -20,7 +36,22 @@ const nextConfig: NextConfig = {
         ]
       }
     ]
-  }
+  },
+  
+  // Webpack設定
+  webpack: (config, { isServer }) => {
+    // クライアントサイドでのみleafletを使用
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      }
+    }
+    
+    return config
+  },
 }
 
 export default nextConfig

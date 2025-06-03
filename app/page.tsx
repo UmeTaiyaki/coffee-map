@@ -1,465 +1,520 @@
 'use client'
-import React, { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useTheme } from '../contexts/ThemeContext'
-import EnhancedHeader from '../components/EnhancedHeader'
-import EnhancedSearchFilter from '../components/EnhancedSearchFilter'
-import EnhancedShopCard from '../components/EnhancedShopCard'
-import ToastNotification, { showToast } from '../components/ToastNotification'
-import { supabase } from '../lib/supabase'
-import type { ShopWithDetails } from '../types/shop'
-import type { FilterState, SortOption } from '../types/filters'
-import { sortShops } from '../utils/sorting'
+import { showToast } from '@/components/ToastNotification'
 
-// 動的インポート
-const AddShopModal = dynamic(() => import('../components/AddShopModal'), {
+// 動的インポートでSSRエラーを回避
+const Map = dynamic(() => import('@/components/SimpleMap'), {
+  ssr: false,
+  loading: () => <MapSkeleton />
+})
+
+const AddShopModal = dynamic(() => import('@/components/AddShopModal'), {
   ssr: false,
   loading: () => null
 })
 
-const Map = dynamic(() => import('../components/EnhancedMap'), {
+const ToastNotification = dynamic(() => import('@/components/ToastNotification'), {
   ssr: false,
-  loading: () => <MapSkeleton />
+  loading: () => null
+})
+
+const UserMenu = dynamic(() => import('@/components/UserMenu'), {
+  ssr: false,
+  loading: () => null
 })
 
 // スケルトンコンポーネント
 function MapSkeleton() {
   return (
-    <div className="h-[500px] glass rounded-2xl flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-5xl mb-4 animate-float">🗺️</div>
-        <div className="text-xl font-medium text-gray-600 dark:text-gray-400">
-          インタラクティブコーヒーマップ
-        </div>
-        <div className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-          マーカーをクリックして店舗詳細を確認
+    <div className="map-container">
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: 'linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1))',
+        position: 'relative'
+      }}>
+        <div style={{ textAlign: 'center', color: 'var(--current-text-secondary)' }}>
+          <div style={{ 
+            fontSize: '4rem', 
+            marginBottom: '1rem',
+            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
+            animation: 'float 3s ease-in-out infinite'
+          }}>🗺️</div>
+          <div style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+            インタラクティブコーヒーマップ
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>
+            マーカーをクリックして店舗詳細を確認
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="glass rounded-xl p-6 animate-pulse">
-          <div className="flex gap-4">
-            <div className="w-24 h-24 bg-gray-300 dark:bg-gray-700 rounded-xl" />
-            <div className="flex-1 space-y-3">
-              <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-1/3" />
-              <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2" />
-              <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/4" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// デフォルトフィルター
-const defaultFilters: FilterState = {
-  search: '',
-  category: 'all',
-  priceRange: 'all',
-  features: [],
-  showFavoritesOnly: false,
-  isOpenNow: false,
-  openAt: { enabled: false, day: 0, time: '09:00' },
-  hasReviews: false,
-  minRating: 0,
-  distance: { enabled: false, maxKm: 5 },
-  tags: [],
-  paymentMethods: []
-}
-
-// メインコンポーネント（ThemeProviderの内側で使用される）
-function HomeContent() {
-  const { density } = useTheme()
+export default function Home() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showAddShopModal, setShowAddShopModal] = useState(false)
-  const [shops, setShops] = useState<ShopWithDetails[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState<FilterState>(defaultFilters)
-  const [sortOption, setSortOption] = useState<SortOption>('distance')
-  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null)
-  const [favorites, setFavorites] = useState<Set<number>>(new Set())
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
+  const [currentTheme, setCurrentTheme] = useState('light')
+  const [currentDensity, setCurrentDensity] = useState('detailed')
 
-  // 店舗データ取得
-  const fetchShops = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: shopsData, error } = await supabase
-        .from('shops')
-        .select(`
-          *,
-          shop_images!shop_images_shop_id_fkey(*),
-          shop_hours!shop_hours_shop_id_fkey(*),
-          shop_tags!shop_tags_shop_id_fkey(*),
-          reviews!reviews_shop_id_fkey(*)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      // お気に入り情報を追加
-      const shopsWithDetails: ShopWithDetails[] = (shopsData || []).map(shop => ({
-        ...shop,
-        images: shop.shop_images || [],
-        hours: shop.shop_hours || [],
-        tags: shop.shop_tags || [],
-        reviews: shop.reviews || [],
-        isFavorite: favorites.has(shop.id),
-        distance: currentLocation ? calculateDistance(
-          currentLocation[0], currentLocation[1],
-          shop.latitude, shop.longitude
-        ) : undefined
-      }))
-
-      setShops(shopsWithDetails)
-    } catch (error) {
-      console.error('店舗データ取得エラー:', error)
-      showToast('店舗データの取得に失敗しました', 'error')
-    } finally {
-      setLoading(false)
+  // テーマ切り替え
+  const toggleTheme = () => {
+    const body = document.body
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light'
+    
+    if (newTheme === 'dark') {
+      body.classList.add('dark-mode')
+    } else {
+      body.classList.remove('dark-mode')
     }
-  }, [favorites, currentLocation])
-
-  // 距離計算
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
+    
+    setCurrentTheme(newTheme)
+    localStorage.setItem('coffee-map-theme', newTheme)
+    
+    // アニメーション効果
+    document.body.style.transform = 'scale(0.98)'
+    setTimeout(() => {
+      document.body.style.transform = 'scale(1)'
+    }, 150)
   }
 
-  // フィルタリング
-  const filteredShops = useMemo(() => {
-    let result = shops.filter(shop => {
-      // 検索
-      if (filters.search && !(
-        shop.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        shop.address.toLowerCase().includes(filters.search.toLowerCase()) ||
-        shop.description?.toLowerCase().includes(filters.search.toLowerCase())
-      )) return false
+  // 情報密度切り替え
+  const setDensity = (density: string) => {
+    setCurrentDensity(density)
+    localStorage.setItem('coffee-map-density', density)
+    showToast(`${density === 'detailed' ? '詳細' : '簡潔'}モードに切り替わりました`, 'info')
+  }
 
-      // カテゴリー
-      if (filters.category !== 'all' && shop.category !== filters.category) return false
-
-      // 価格帯
-      if (filters.priceRange !== 'all' && shop.price_range.toString() !== filters.priceRange) return false
-
-      // 設備
-      if (filters.features.includes('wifi') && !shop.has_wifi) return false
-      if (filters.features.includes('power') && !shop.has_power) return false
-
-      // お気に入り
-      if (filters.showFavoritesOnly && !shop.isFavorite) return false
-
-      // 営業中
-      if (filters.isOpenNow) {
-        const now = new Date()
-        const currentDay = now.getDay()
-        const currentTime = now.toTimeString().slice(0, 5)
-        const todayHours = shop.hours?.find(h => h.day_of_week === currentDay)
-        
-        if (!todayHours || todayHours.is_closed) return false
-        if (!todayHours.open_time || !todayHours.close_time) return false
-        if (currentTime < todayHours.open_time || currentTime > todayHours.close_time) return false
-      }
-
-      // レビュー
-      if (filters.hasReviews && (!shop.reviews || shop.reviews.length === 0)) return false
-
-      // 評価
-      if (filters.minRating > 0 && shop.reviews && shop.reviews.length > 0) {
-        const avgRating = shop.reviews.reduce((sum, r) => sum + r.rating, 0) / shop.reviews.length
-        if (avgRating < filters.minRating) return false
-      }
-
-      // 距離
-      if (filters.distance.enabled && currentLocation && shop.distance) {
-        if (shop.distance > filters.distance.maxKm) return false
-      }
-
-      // タグ
-      if (filters.tags.length > 0) {
-        const shopTags = shop.tags?.map(t => t.tag) || []
-        if (!filters.tags.some(tag => shopTags.includes(tag))) return false
-      }
-
-      return true
-    })
-
-    // ソート
-    return sortShops(result, { option: sortOption, direction: 'asc' }, currentLocation || undefined)
-  }, [shops, filters, sortOption, currentLocation])
-
-  // 統計情報
-  const stats = useMemo(() => {
-    const openCount = filteredShops.filter(shop => {
-      const now = new Date()
-      const currentDay = now.getDay()
-      const currentTime = now.toTimeString().slice(0, 5)
-      const todayHours = shop.hours?.find(h => h.day_of_week === currentDay)
-      
-      if (!todayHours || todayHours.is_closed) return false
-      if (!todayHours.open_time || !todayHours.close_time) return false
-      
-      return currentTime >= todayHours.open_time && currentTime <= todayHours.close_time
-    }).length
-
-    const totalRating = filteredShops.reduce((sum, shop) => {
-      if (shop.reviews && shop.reviews.length > 0) {
-        return sum + shop.reviews.reduce((s, r) => s + r.rating, 0) / shop.reviews.length
-      }
-      return sum
-    }, 0)
-
-    const shopsWithReviews = filteredShops.filter(s => s.reviews && s.reviews.length > 0).length
-    const averageRating = shopsWithReviews > 0 ? totalRating / shopsWithReviews : 0
-
-    const favoriteCount = filteredShops.filter(s => s.isFavorite).length
-
-    const oneWeekAgo = new Date()
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    const newCount = filteredShops.filter(s => 
-      s.created_at && new Date(s.created_at) > oneWeekAgo
-    ).length
-
-    return {
-      shopCount: filteredShops.length,
-      openCount,
-      averageRating,
-      favoriteCount,
-      newCount
-    }
-  }, [filteredShops])
-
-  // お気に入り切り替え
-  const toggleFavorite = useCallback((shopId: number) => {
-    setFavorites(prev => {
-      const newFavorites = new Set(prev)
-      if (newFavorites.has(shopId)) {
-        newFavorites.delete(shopId)
-        showToast('お気に入りから削除しました', 'info')
-      } else {
-        newFavorites.add(shopId)
-        showToast('お気に入りに追加しました', 'success')
-      }
-      return newFavorites
-    })
-  }, [])
-
-  // 店舗詳細表示
-  const showShopDetails = useCallback((shop: ShopWithDetails) => {
-    // TODO: 詳細モーダル表示
-    showToast(`${shop.name}の詳細を表示`, 'info')
-  }, [])
-
-  // レビュー表示
-  const showReviews = useCallback((shop: ShopWithDetails) => {
-    // TODO: レビューモーダル表示
-    showToast(`${shop.name}のレビューを表示`, 'info')
-  }, [])
-
-  // ナビゲーション
-  const navigateToShop = useCallback((shop: ShopWithDetails) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${shop.latitude},${shop.longitude}`
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }, [])
-
-  // 現在地取得
-  const getCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      showToast('位置情報がサポートされていません', 'error')
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords
-        setCurrentLocation([latitude, longitude])
-        showToast('現在地を取得しました', 'success')
-      },
-      (error) => {
-        console.error('位置情報取得エラー:', error)
-        showToast('位置情報の取得に失敗しました', 'error')
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000
-      }
-    )
-  }, [])
+  // 店舗追加後のリフレッシュ
+  const handleShopAdded = () => {
+    setRefreshTrigger(prev => prev + 1)
+    setShowAddShopModal(false)
+    showToast('新しい店舗が追加されました！', 'success')
+  }
 
   // 初期化
   useEffect(() => {
-    fetchShops()
-    getCurrentLocation()
-  }, [fetchShops, getCurrentLocation, refreshTrigger])
+    // 保存されたテーマを復元
+    const savedTheme = localStorage.getItem('coffee-map-theme')
+    if (savedTheme === 'dark') {
+      toggleTheme()
+    }
+    
+    // 保存された密度設定を復元
+    const savedDensity = localStorage.getItem('coffee-map-density')
+    if (savedDensity && savedDensity !== currentDensity) {
+      setCurrentDensity(savedDensity)
+    }
+    
+    // ウェルカムメッセージ
+    setTimeout(() => {
+      showToast('Coffee Mapへようこそ！素敵なコーヒータイムを🌟', 'success')
+    }, 1000)
+  }, [])
 
   return (
-    <div className="min-h-screen">
-      {/* ヘッダー */}
-      <EnhancedHeader onAddShop={() => setShowAddShopModal(true)} />
-
-      {/* 検索・フィルター */}
-      <EnhancedSearchFilter
-        filters={filters}
-        sortOption={sortOption}
-        {...stats}
-        onFiltersChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-        onSortChange={setSortOption}
-        onGetCurrentLocation={getCurrentLocation}
-        hasLocation={!!currentLocation}
-      />
-
-      {/* メインコンテンツ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* ビューモード切り替え */}
-        <div className="flex justify-center mb-6">
-          <div className="glass-sm rounded-lg overflow-hidden inline-flex">
-            <button
-              onClick={() => setViewMode('map')}
-              className={`px-6 py-3 text-sm font-medium transition-all ${
-                viewMode === 'map'
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              🗺️ 地図表示
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-6 py-3 text-sm font-medium transition-all ${
-                viewMode === 'list'
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              📋 リスト表示
-            </button>
+    <div className="app-container">
+      {/* ハイブリッドヘッダー */}
+      <header className="header">
+        <div className="header-content">
+          <div className="brand-section">
+            <div className="logo-container">
+              <div className="logo">☕</div>
+              <div className="brand-text">
+                <h1>Coffee Map</h1>
+                <p>コーヒー豆に出会う - 最高の一杯を発見</p>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* コンテンツ表示 */}
-        {viewMode === 'map' ? (
-          <Suspense fallback={<MapSkeleton />}>
-            <Map refreshTrigger={refreshTrigger} />
-          </Suspense>
-        ) : (
-          <div className={`grid gap-4 ${
-            density === 'compact' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-              : 'grid-cols-1'
-          }`}>
-            {loading ? (
-              <LoadingSkeleton />
-            ) : filteredShops.length === 0 ? (
-              <div className="glass rounded-2xl p-12 text-center col-span-full">
-                <div className="text-5xl mb-4">☕</div>
-                <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-                  該当する店舗が見つかりません
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  フィルター条件を変更してみてください
-                </p>
-                <button
-                  onClick={() => setFilters(defaultFilters)}
-                  className="btn-glass bg-orange-500 text-white hover:bg-orange-600"
+          
+          <div className="user-section">
+            <div style={{ textAlign: 'right', fontSize: '0.9rem', color: 'var(--current-text-secondary)' }}>
+              <div style={{ fontWeight: 600, color: 'var(--current-text-primary)' }}>
+                田中さん、こんにちは！
+              </div>
+              <div>今日も素敵なコーヒータイムを ☀️</div>
+            </div>
+            
+            <div className="controls-section">
+              <div className="mode-controls">
+                <button 
+                  className={`mode-btn ${currentDensity === 'detailed' ? 'active' : ''}`}
+                  onClick={() => setDensity('detailed')}
                 >
-                  フィルターをリセット
+                  詳細
+                </button>
+                <button 
+                  className={`mode-btn ${currentDensity === 'compact' ? 'active' : ''}`}
+                  onClick={() => setDensity('compact')}
+                >
+                  簡潔
                 </button>
               </div>
-            ) : (
-              filteredShops.map((shop, index) => (
-                <div 
-                  key={shop.id}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <EnhancedShopCard
-                    shop={shop}
-                    onToggleFavorite={toggleFavorite}
-                    onShowDetails={showShopDetails}
-                    onShowReviews={showReviews}
-                    onNavigate={navigateToShop}
-                  />
+              
+              <button 
+                className="theme-toggle" 
+                onClick={toggleTheme} 
+                title="ダーク/ライトモード切り替え"
+              >
+                {currentTheme === 'light' ? '🌙' : '☀️'}
+              </button>
+              
+              <button
+                onClick={() => setShowAddShopModal(true)}
+                className="coffee-button"
+              >
+                <span>🏪</span>
+                <span style={{ display: window.innerWidth > 640 ? 'inline' : 'none' }}>
+                  新しい店舗
+                </span>
+              </button>
+              
+              <Suspense fallback={<div style={{ width: '40px', height: '40px', background: '#ddd', borderRadius: '50%' }} />}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(45deg, var(--accent-coffee), var(--accent-gold))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}>
+                  👤
                 </div>
-              ))
-            )}
+              </Suspense>
+            </div>
           </div>
-        )}
+        </div>
+      </header>
+
+      {/* 適応型検索・フィルターエリア */}
+      <div className="search-filter-area">
+        <div className="search-container">
+          <div className="search-bar">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              className="search-input" 
+              placeholder="店舗名・住所・こだわり・雰囲気で検索..."
+            />
+          </div>
+          
+          <div className="filter-section">
+            <div className="filter-group">
+              <div className="filter-label">📂 カテゴリー</div>
+              <select className="filter-select">
+                <option>すべてのカテゴリー</option>
+                <option>☕ カフェ</option>
+                <option>🔥 自家焙煎</option>
+                <option>🏪 チェーン</option>
+                <option>✨ スペシャルティ</option>
+                <option>🥐 ベーカリーカフェ</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <div className="filter-label">💰 価格帯</div>
+              <select className="filter-select">
+                <option>すべての価格帯</option>
+                <option>¥ (～500円)</option>
+                <option>¥¥ (500～1000円)</option>
+                <option>¥¥¥ (1000～2000円)</option>
+                <option>¥¥¥¥ (2000円～)</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <div className="filter-label">📍 距離</div>
+              <select className="filter-select">
+                <option>距離指定なし</option>
+                <option>徒歩5分以内</option>
+                <option>徒歩10分以内</option>
+                <option>徒歩15分以内</option>
+                <option>車で20分以内</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <div className="filter-label">📊 並び順</div>
+              <select className="filter-select">
+                <option>📍 近い順</option>
+                <option>⭐ 評価順</option>
+                <option>💬 レビュー数順</option>
+                <option>🆕 新着順</option>
+                <option>💰 価格安順</option>
+                <option>🎲 ランダム</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="quick-actions">
+            <button className="quick-btn active">📍 現在地周辺</button>
+            <button className="quick-btn">📶 Wi-Fi完備</button>
+            <button className="quick-btn">🔌 電源あり</button>
+            <button className="quick-btn">🕐 営業中</button>
+            <button className="quick-btn">⭐ 高評価</button>
+            <button className="quick-btn">📚 読書向け</button>
+            <button className="quick-btn">💻 PC作業可</button>
+            <button className="quick-btn">🚭 完全禁煙</button>
+            <button className="quick-btn">🅿️ 駐車場あり</button>
+            <button className="quick-btn">🌙 夜も営業</button>
+          </div>
+          
+          <div className="stats-dashboard">
+            <div className="stat-card">
+              <div className="stat-number">47</div>
+              <div className="stat-label">該当店舗</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">34</div>
+              <div className="stat-label">営業中</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">4.3</div>
+              <div className="stat-label">平均評価</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">12</div>
+              <div className="stat-label">お気に入り</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-number">8</div>
+              <div className="stat-label">新着</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* メインコンテンツ */}
+      <div className="main-content">
+        {/* 地図エリア */}
+        <Suspense fallback={<MapSkeleton />}>
+          <Map refreshTrigger={refreshTrigger} />
+        </Suspense>
+
+        {/* 店舗リスト */}
+        <div style={{ marginTop: '2rem' }}>
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: 'bold', 
+            color: 'var(--accent-coffee)', 
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            📍 コーヒーショップ一覧
+            <span style={{
+              background: 'var(--accent-warm)',
+              color: 'white',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              fontWeight: '600'
+            }}>
+              6店舗
+            </span>
+          </h2>
+          
+          <div style={{ 
+            display: 'grid',
+            gap: '1.5rem',
+            gridTemplateColumns: currentDensity === 'compact' ? 'repeat(auto-fit, minmax(350px, 1fr))' : '1fr'
+          }}>
+            {/* 店舗カード例 */}
+            {[
+              {
+                name: '青山コーヒー焙煎所',
+                category: '🔥 自家焙煎・スペシャルティコーヒー',
+                rating: 4.8,
+                reviews: 127,
+                status: '営業中',
+                distance: '徒歩3分 (240m)',
+                features: ['📶 Wi-Fi完備', '🔌 電源豊富', '🔥 自家焙煎', '🚭 完全禁煙']
+              },
+              {
+                name: '隠れ家カフェ Beans',
+                category: '☕ カフェ・読書・作業向け',
+                rating: 4.3,
+                reviews: 89,
+                status: '営業中',
+                distance: '徒歩8分 (650m)',
+                features: ['📶 Wi-Fi無料', '🔌 全席電源', '📚 読書推奨', '🚭 禁煙']
+              },
+              {
+                name: 'コーヒー工房 ROAST',
+                category: '🔥 自家焙煎・豆販売・体験',
+                rating: 4.7,
+                reviews: 203,
+                status: '18時閉店',
+                distance: '徒歩12分 (950m)',
+                features: ['🔥 自家焙煎', '🫘 豆販売', '🎓 焙煎体験', '📶 Wi-Fi']
+              }
+            ].map((shop, index) => (
+              <div key={index} className="coffee-card">
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(45deg, var(--accent-coffee), var(--accent-warm))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2rem',
+                    color: 'white',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}>
+                    ☕
+                  </div>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--current-text-primary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      {shop.name}
+                    </div>
+                    
+                    <div style={{
+                      fontSize: '0.9rem',
+                      color: 'var(--current-text-secondary)',
+                      marginBottom: '0.75rem'
+                    }}>
+                      {shop.category}
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: 'var(--current-tertiary-bg)',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--current-border)'
+                      }}>
+                        <span style={{ color: 'var(--accent-gold)', fontSize: '0.9rem' }}>
+                          ⭐⭐⭐⭐⭐
+                        </span>
+                        <span style={{ fontWeight: 600, color: 'var(--accent-gold)', fontSize: '0.9rem' }}>
+                          {shop.rating}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--current-text-muted)' }}>
+                          ({shop.reviews}件)
+                        </span>
+                      </div>
+                      
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        background: shop.status === '営業中' ? 'rgba(34, 139, 34, 0.1)' : 'rgba(229, 62, 62, 0.1)',
+                        color: shop.status === '営業中' ? 'var(--accent-green)' : 'var(--accent-red)',
+                        border: `1px solid ${shop.status === '営業中' ? 'rgba(34, 139, 34, 0.2)' : 'rgba(229, 62, 62, 0.2)'}`
+                      }}>
+                        {shop.status}
+                      </span>
+                      
+                      <span style={{
+                        color: 'var(--current-text-muted)',
+                        fontSize: '0.85rem',
+                        fontWeight: 500
+                      }}>
+                        {shop.distance}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {currentDensity === 'detailed' && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--current-border)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {shop.features.map((feature, idx) => (
+                        <span key={idx} style={{
+                          padding: '0.25rem 0.75rem',
+                          background: 'var(--accent-green)',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 500
+                        }}>
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    <div style={{
+                      background: 'linear-gradient(45deg, rgba(111, 78, 55, 0.05), rgba(255, 140, 66, 0.05))',
+                      border: '1px solid var(--current-border)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      margin: '1rem 0',
+                      fontSize: '0.85rem',
+                      color: 'var(--current-text-secondary)',
+                      textAlign: 'center',
+                      lineHeight: 1.5
+                    }}>
+                      ☕ <span style={{ color: 'var(--accent-coffee)', fontWeight: 600 }}>
+                        本格的なコーヒー体験
+                      </span>をお求めの皆様へ。<br/>
+                      マスターが丁寧に選定した豆で、至福のひとときをお過ごしください。
+                    </div>
+                    
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                      gap: '0.75rem'
+                    }}>
+                      <button className="coffee-button" style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                        ❤️ お気に入り
+                      </button>
+                      <button className="coffee-button" style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                        📝 詳細・レビュー
+                      </button>
+                      <button className="coffee-button" style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                        🗺️ ルート案内
+                      </button>
+                      <button className="coffee-button" style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                        📞 電話する
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 店舗追加モーダル */}
       <AddShopModal
         isOpen={showAddShopModal}
         onClose={() => setShowAddShopModal(false)}
-        onShopAdded={() => {
-          setRefreshTrigger(prev => prev + 1)
-          setShowAddShopModal(false)
-        }}
+        onShopAdded={handleShopAdded}
       />
 
       {/* トースト通知 */}
       <ToastNotification />
     </div>
-  )
-}
-
-// エラーバウンダリコンポーネント
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">エラーが発生しました</h2>
-            <p className="text-gray-600 mb-4">{this.state.error?.message}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              ページを再読み込み
-            </button>
-          </div>
-        </div>
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-// デフォルトエクスポート（ThemeProviderでラップされる前）
-export default function Home() {
-  return (
-    <ErrorBoundary>
-      <HomeContent />
-    </ErrorBoundary>
   )
 }

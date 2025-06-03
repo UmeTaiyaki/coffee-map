@@ -1,9 +1,7 @@
 // components/Map.tsx - 完全版
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../contexts/UserContext'
@@ -13,6 +11,27 @@ import { sortShops, resetRandomSort } from '../utils/sorting'
 import { showToast } from './ToastNotification'
 import type { FilterState, SortState } from '../types/filters'
 import type { ShopWithDetails } from '../types/shop'
+
+// Dynamic imports for Leaflet components
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  { ssr: false }
+)
+
+const TileLayer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.TileLayer),
+  { ssr: false }
+)
+
+const Marker = dynamic(
+  () => import('react-leaflet').then((mod) => mod.Marker),
+  { ssr: false }
+)
+
+const Popup = dynamic(
+  () => import('react-leaflet').then((mod) => mod.Popup),
+  { ssr: false }
+)
 
 // 定数
 const DEFAULT_CENTER: [number, number] = [35.6762, 139.6503]
@@ -37,22 +56,35 @@ const PRICE_RANGES = {
   4: '¥¥¥¥'
 } as const
 
-// アイコン設定
-const DefaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+// アイコン設定（クライアントサイドでのみ実行）
+const createIcons = async () => {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const L = await import('leaflet')
+    
+    const DefaultIcon = L.default.icon({
+      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    })
 
-const CurrentLocationIcon = L.icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTIiIGZpbGw9IiMzMzg4RkYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-  popupAnchor: [0, -16]
-})
+    const CurrentLocationIcon = L.default.icon({
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTIiIGZpbGw9IiMzMzg4RkYiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16]
+    })
+    
+    return { DefaultIcon, CurrentLocationIcon }
+  } catch (error) {
+    console.error('Leaflet icons creation failed:', error)
+    return null
+  }
+}
 
 // デフォルト値
 const defaultFilters: FilterState = {
@@ -77,18 +109,44 @@ const defaultSort: SortState = {
 
 // マップビュー変更コンポーネント
 function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap()
+  const [useMapHook, setUseMapHook] = useState<any>(null)
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      import('react-leaflet').then((mod) => {
+        setUseMapHook(() => mod.useMap)
+      })
+    }
+  }, [])
+  
+  if (!useMapHook) return null
+  
+  const map = useMapHook()
+  
   useEffect(() => {
     if (map) {
       map.setView(center, zoom)
     }
   }, [center, zoom, map])
+  
   return null
 }
 
 // マップリサイズコンポーネント
 function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
-  const map = useMap()
+  const [useMapHook, setUseMapHook] = useState<any>(null)
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      import('react-leaflet').then((mod) => {
+        setUseMapHook(() => mod.useMap)
+      })
+    }
+  }, [])
+  
+  if (!useMapHook) return null
+  
+  const map = useMapHook()
   
   useEffect(() => {
     const timer = setTimeout(() => map.invalidateSize(), 350)
@@ -337,6 +395,27 @@ export default function Map({ refreshTrigger }: MapProps) {
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
   const [sortState, setSortState] = useState<SortState>(defaultSort)
   const [favorites, setFavorites] = useState<Set<number>>(new Set())
+  const [icons, setIcons] = useState<any>(null)
+
+  // クライアントサイドでアイコンを初期化
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Leaflet CSSを動的に読み込み
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
+      link.crossOrigin = ''
+      document.head.appendChild(link)
+      
+      // アイコンを非同期で作成
+      createIcons().then(iconData => {
+        if (iconData) {
+          setIcons(iconData)
+        }
+      })
+    }
+  }, [])
 
   // ヘルパー関数
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -656,6 +735,11 @@ export default function Map({ refreshTrigger }: MapProps) {
     )
   }
 
+  // アイコンが読み込まれていない場合はローディング
+  if (!icons) {
+    return <LoadingSpinner />
+  }
+
   return (
     <div className="h-full w-full relative">
       {/* 地図 */}
@@ -683,7 +767,7 @@ export default function Map({ refreshTrigger }: MapProps) {
         
         {/* 現在地マーカー */}
         {currentLocation && (
-          <Marker position={currentLocation} icon={CurrentLocationIcon}>
+          <Marker position={currentLocation} icon={icons.CurrentLocationIcon}>
             <Popup>
               <div className="text-center p-2">
                 <strong className="text-blue-600">📍 現在地</strong>
@@ -697,7 +781,7 @@ export default function Map({ refreshTrigger }: MapProps) {
           <Marker
             key={shop.id}
             position={[shop.latitude, shop.longitude]}
-            icon={DefaultIcon}
+            icon={icons.DefaultIcon}
           >
             <Popup>
               <div className="p-2 max-w-xs">

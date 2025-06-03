@@ -1,14 +1,14 @@
 'use client'
 
 import React from 'react'
-import { ThemeProvider } from '../contexts/ThemeContext'
-import { UserProvider } from '../contexts/UserContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { UserProvider } from '@/contexts/UserContext'
 
-export default function ClientProviders({
-  children,
-}: {
+interface ClientProvidersProps {
   children: React.ReactNode
-}) {
+}
+
+export default function ClientProviders({ children }: ClientProvidersProps) {
   return (
     <ThemeProvider>
       <UserProvider>
