@@ -30,26 +30,13 @@ const UserMenu = dynamic(() => import('@/components/UserMenu'), {
 function MapSkeleton() {
   return (
     <div className="map-container">
-      <div style={{ 
-        width: '100%', 
-        height: '100%', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: 'linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1))',
-        position: 'relative'
-      }}>
-        <div style={{ textAlign: 'center', color: 'var(--current-text-secondary)' }}>
-          <div style={{ 
-            fontSize: '4rem', 
-            marginBottom: '1rem',
-            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
-            animation: 'float 3s ease-in-out infinite'
-          }}>🗺️</div>
-          <div style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+      <div className="map-content">
+        <div className="map-placeholder">
+          <div className="map-icon">🗺️</div>
+          <div className="text-xl font-medium mb-2">
             Coffee Map を読み込み中...
           </div>
-          <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>
+          <div className="text-sm opacity-70">
             お気に入りのコーヒーショップを探しましょう
           </div>
         </div>
@@ -149,7 +136,7 @@ export default function Home() {
     setTimeout(() => {
       showToast('Coffee Mapへようこそ！素敵なコーヒータイムを🌟', 'success')
     }, 1000)
-  }, [])
+  }, [currentDensity])
 
   return (
     <div className="app-container">
@@ -169,8 +156,8 @@ export default function Home() {
           <div className="user-section">
             {/* ユーザー挨拶 */}
             {user ? (
-              <div style={{ textAlign: 'right', fontSize: '0.9rem', color: 'var(--current-text-secondary)' }}>
-                <div style={{ fontWeight: 600, color: 'var(--current-text-primary)' }}>
+              <div className="greeting-text">
+                <div className="user-name">
                   {user.nickname || 'Coffee Lover'}さん、{getGreeting()}！
                 </div>
                 <div>今日も素敵なコーヒータイムを {getTimeEmoji()}</div>
@@ -179,7 +166,6 @@ export default function Home() {
               <button
                 onClick={openAuthModal}
                 className="coffee-button"
-                style={{ fontSize: '0.85rem' }}
               >
                 サインイン
               </button>
@@ -225,13 +211,7 @@ export default function Home() {
               
               {/* ユーザーメニュー */}
               <Suspense fallback={
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: '#ddd',
-                  animation: 'pulse 2s infinite'
-                }} />
+                <div className="user-avatar-skeleton" />
               }>
                 <UserMenu />
               </Suspense>
@@ -241,7 +221,7 @@ export default function Home() {
       </header>
 
       {/* メインコンテンツ - フル画面マップ */}
-      <div className="main-content" style={{ height: 'calc(100vh - 80px)' }}>
+      <div className="main-content">
         <Suspense fallback={<MapSkeleton />}>
           <Map refreshTrigger={refreshTrigger} />
         </Suspense>
@@ -262,32 +242,84 @@ export default function Home() {
 
       {/* グローバルスタイル */}
       <style jsx global>{`
+        /* CSS Variables */
+        :root {
+          /* ライトモード（日本文化対応） */
+          --light-primary-bg: #F8F5F0;
+          --light-secondary-bg: #FFFFFF;
+          --light-tertiary-bg: #FFF8F0;
+          --light-text-primary: #2D3748;
+          --light-text-secondary: #4A5568;
+          --light-text-muted: #718096;
+          --light-border: #E2E8F0;
+          
+          /* ダークモード（欧米モダン） */
+          --dark-primary-bg: #0F0F0F;
+          --dark-secondary-bg: #1A1A1A;
+          --dark-tertiary-bg: #2D2D2D;
+          --dark-text-primary: #FFFFFF;
+          --dark-text-secondary: #CCCCCC;
+          --dark-text-muted: #999999;
+          --dark-border: rgba(255, 255, 255, 0.1);
+          
+          /* 共通アクセントカラー */
+          --accent-coffee: #6F4E37;
+          --accent-warm: #FF8C42;
+          --accent-gold: #D4AF37;
+          --accent-red: #E53E3E;
+          --accent-green: #228B22;
+          --accent-blue: #3B82F6;
+          
+          /* グラスモーフィズム */
+          --glass-bg: rgba(255, 255, 255, 0.1);
+          --glass-border: rgba(255, 255, 255, 0.2);
+          --glass-shadow: rgba(0, 0, 0, 0.1);
+          
+          /* 現在のテーマ変数（デフォルト：ライト） */
+          --current-primary-bg: var(--light-primary-bg);
+          --current-secondary-bg: var(--light-secondary-bg);
+          --current-tertiary-bg: var(--light-tertiary-bg);
+          --current-text-primary: var(--light-text-primary);
+          --current-text-secondary: var(--light-text-secondary);
+          --current-text-muted: var(--light-text-muted);
+          --current-border: var(--light-border);
+        }
+
+        /* ダークモード切り替え */
+        .dark-mode {
+          --current-primary-bg: var(--dark-primary-bg);
+          --current-secondary-bg: var(--dark-secondary-bg);
+          --current-tertiary-bg: var(--dark-tertiary-bg);
+          --current-text-primary: var(--dark-text-primary);
+          --current-text-secondary: var(--dark-text-secondary);
+          --current-text-muted: var(--dark-text-muted);
+          --current-border: var(--dark-border);
+          --glass-bg: rgba(0, 0, 0, 0.3);
+          --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
         /* アプリ全体のスタイル */
         .app-container {
           min-height: 100vh;
-          background: var(--current-primary-bg);
+          background: linear-gradient(135deg, var(--current-primary-bg) 0%, var(--current-tertiary-bg) 100%);
           color: var(--current-text-primary);
           transition: all 0.3s ease;
         }
 
         /* ヘッダースタイル */
         .header {
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          background: var(--glass-bg);
+          backdrop-filter: blur(20px);
+          border-bottom: 1px solid var(--glass-border);
+          box-shadow: 0 4px 20px var(--glass-shadow);
           position: sticky;
           top: 0;
           z-index: 1000;
           transition: all 0.3s ease;
         }
 
-        .dark-mode .header {
-          background: rgba(26, 26, 26, 0.95);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
         .header-content {
-          max-width: 1280px;
+          max-width: 1200px;
           margin: 0 auto;
           padding: 1rem 1.5rem;
           display: flex;
@@ -311,7 +343,7 @@ export default function Home() {
         }
 
         .brand-section .brand-text h1 {
-          font-size: 1.75rem;
+          font-size: 1.5rem;
           font-weight: 700;
           background: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
           -webkit-background-clip: text;
@@ -321,9 +353,10 @@ export default function Home() {
         }
 
         .brand-section .brand-text p {
-          font-size: 0.875rem;
+          font-size: 0.85rem;
           color: var(--current-text-secondary);
           margin: 0;
+          font-weight: 300;
         }
 
         /* ユーザーセクション */
@@ -331,6 +364,17 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 1rem;
+        }
+
+        .greeting-text {
+          text-align: right;
+          font-size: 0.9rem;
+          color: var(--current-text-secondary);
+        }
+
+        .user-name {
+          font-weight: 600;
+          color: var(--current-text-primary);
         }
 
         .controls-section {
@@ -342,26 +386,23 @@ export default function Home() {
         /* モード切り替えボタン */
         .mode-controls {
           display: flex;
-          background: rgba(255, 255, 255, 0.8);
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          border-radius: 8px;
+          background: var(--current-tertiary-bg);
+          border: 1px solid var(--current-border);
+          border-radius: 12px;
           overflow: hidden;
-        }
-
-        .dark-mode .mode-controls {
-          background: rgba(45, 45, 45, 0.8);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .mode-btn {
           padding: 0.5rem 0.75rem;
-          font-size: 0.75rem;
-          font-weight: 600;
+          font-size: 0.8rem;
+          font-weight: 500;
           border: none;
           background: transparent;
           color: var(--current-text-secondary);
           cursor: pointer;
           transition: all 0.2s ease;
+          white-space: nowrap;
         }
 
         .mode-btn:hover {
@@ -372,6 +413,7 @@ export default function Home() {
         .mode-btn.active {
           background: var(--accent-warm);
           color: white;
+          transform: scale(1.02);
         }
 
         /* テーマ切り替えボタン */
@@ -379,8 +421,8 @@ export default function Home() {
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          background: rgba(255, 255, 255, 0.8);
+          border: 1px solid var(--current-border);
+          background: var(--current-secondary-bg);
           color: var(--current-text-primary);
           font-size: 1.25rem;
           cursor: pointer;
@@ -388,11 +430,6 @@ export default function Home() {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-
-        .dark-mode .theme-toggle {
-          background: rgba(45, 45, 45, 0.8);
-          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .theme-toggle:hover {
@@ -429,6 +466,7 @@ export default function Home() {
 
         /* メインコンテンツ */
         .main-content {
+          height: calc(100vh - 80px);
           position: relative;
           overflow: hidden;
         }
@@ -440,6 +478,37 @@ export default function Home() {
           position: relative;
           border-radius: 0;
           overflow: hidden;
+        }
+
+        .map-content {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1));
+          position: relative;
+        }
+
+        .map-placeholder {
+          text-align: center;
+          color: var(--current-text-secondary);
+        }
+
+        .map-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+          filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+          animation: float 3s ease-in-out infinite;
+        }
+
+        /* ユーザーアバタースケルトン */
+        .user-avatar-skeleton {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: #ddd;
+          animation: pulse 2s infinite;
         }
 
         /* アニメーション */
@@ -456,34 +525,6 @@ export default function Home() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
-        }
-
-        /* カスタムプロパティ */
-        :root {
-          --accent-coffee: #6F4E37;
-          --accent-warm: #FF8C42;
-          --accent-gold: #D4AF37;
-          --accent-green: #228B22;
-          --accent-red: #DC143C;
-          --accent-blue: #3B82F6;
-          
-          --current-primary-bg: #F8F5F0;
-          --current-secondary-bg: #FFFFFF;
-          --current-tertiary-bg: #FFF8F0;
-          --current-text-primary: #2D2D2D;
-          --current-text-secondary: #666666;
-          --current-text-muted: #999999;
-          --current-border: rgba(0, 0, 0, 0.1);
-        }
-
-        .dark-mode {
-          --current-primary-bg: #0F0F0F;
-          --current-secondary-bg: #1A1A1A;
-          --current-tertiary-bg: #2D2D2D;
-          --current-text-primary: #FFFFFF;
-          --current-text-secondary: #CCCCCC;
-          --current-text-muted: #999999;
-          --current-border: rgba(255, 255, 255, 0.1);
         }
 
         /* レスポンシブ対応 */
@@ -526,12 +567,35 @@ export default function Home() {
           }
 
           .brand-section .brand-text h1 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
           }
 
           .brand-section .brand-text p {
             font-size: 0.75rem;
           }
+        }
+
+        /* アクセシビリティ */
+        @media (prefers-reduced-motion: reduce) {
+          .gentle-pulse,
+          .float,
+          .pulse {
+            animation: none;
+          }
+          
+          .coffee-button,
+          .theme-toggle,
+          .mode-btn {
+            transition: none;
+          }
+        }
+
+        /* フォーカス管理 */
+        button:focus,
+        input:focus,
+        select:focus {
+          outline: 2px solid var(--accent-warm);
+          outline-offset: 2px;
         }
       `}</style>
     </div>

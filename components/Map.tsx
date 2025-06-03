@@ -1,4 +1,4 @@
-// components/Map.tsx - Hooks順序エラー修正版
+// components/Map.tsx - 完全統合版（UIUXを完成イメージに合わせて改善）
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
@@ -161,13 +161,10 @@ const defaultSort: SortState = {
   direction: 'asc'
 }
 
-// マップビュー変更コンポーネント - hooks順序を修正
+// マップビュー変更コンポーネント
 function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
-  // useMapHookを常に最初に初期化
   const [useMapHook, setUseMapHook] = useState<any>(null)
-  const [map, setMap] = useState<any>(null)
   
-  // 最初のuseEffect: useMapフックの取得
   useEffect(() => {
     if (typeof window !== 'undefined') {
       import('react-leaflet').then((mod) => {
@@ -176,17 +173,10 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
     }
   }, [])
   
-  // useMapフックを条件なしで呼び出す（nullの場合はダミー関数を返す）
-  const mapInstance = useMapHook ? useMapHook() : null
+  if (!useMapHook) return null
   
-  // 2番目のuseEffect: mapインスタンスの設定
-  useEffect(() => {
-    if (mapInstance) {
-      setMap(mapInstance)
-    }
-  }, [mapInstance])
+  const map = useMapHook()
   
-  // 3番目のuseEffect: マップビューの更新
   useEffect(() => {
     if (map) {
       map.setView(center, zoom)
@@ -196,48 +186,20 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
   return null
 }
 
-// マップリサイズコンポーネント - hooks順序を修正
-function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
-  const [useMapHook, setUseMapHook] = useState<any>(null)
-  const [map, setMap] = useState<any>(null)
-  
-  // 最初のuseEffect: useMapフックの取得
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      import('react-leaflet').then((mod) => {
-        setUseMapHook(() => mod.useMap)
-      })
-    }
-  }, [])
-  
-  // useMapフックを条件なしで呼び出す
-  const mapInstance = useMapHook ? useMapHook() : null
-  
-  // 2番目のuseEffect: mapインスタンスの設定
-  useEffect(() => {
-    if (mapInstance) {
-      setMap(mapInstance)
-    }
-  }, [mapInstance])
-  
-  // 3番目のuseEffect: マップリサイズ
-  useEffect(() => {
-    if (map) {
-      const timer = setTimeout(() => map.invalidateSize(), 350)
-      return () => clearTimeout(timer)
-    }
-  }, [sidePanelOpen, map])
-  
-  return null
-}
-
 // ローディングコンポーネント
 function LoadingSpinner() {
   return (
-    <div className="h-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50">
-      <div className="text-center p-6">
-        <div className="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 text-sm">地図を読み込み中...</p>
+    <div className="map-container">
+      <div className="map-content">
+        <div className="map-placeholder">
+          <div className="map-icon">🗺️</div>
+          <div className="text-xl font-medium mb-2">
+            Coffee Map を読み込み中...
+          </div>
+          <div className="text-sm opacity-70">
+            お気に入りのコーヒーショップを探しましょう
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -256,11 +218,7 @@ function FilterTag({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-        active
-          ? 'bg-orange-500 text-white shadow-md'
-          : 'bg-white text-gray-700 border border-gray-200 hover:bg-orange-50'
-      }`}
+      className={`quick-btn ${active ? 'active' : ''}`}
     >
       {label}
     </button>
@@ -300,198 +258,246 @@ function IntegratedSidebar({
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="absolute top-4 left-4 z-[500] w-80 lg:w-96">
-      <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-white/20">
-        {/* ヘッダー */}
-        <div className="p-4 border-b border-gray-100">
-          {/* 検索バー */}
-          <div className="relative mb-3">
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-orange-500 text-lg">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="店舗名・住所・特徴で検索..."
-              value={filters.search}
-              onChange={(e) => onFiltersChange({ search: e.target.value })}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm bg-white"
-            />
-          </div>
+    <div className="search-filter-area">
+      <div className="search-container">
+        {/* 検索バー */}
+        <div className="search-bar">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="店舗名・住所・こだわり・雰囲気で検索..."
+            value={filters.search}
+            onChange={(e) => onFiltersChange({ search: e.target.value })}
+          />
+        </div>
 
-          {/* 統計ダッシュボード */}
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            <div className="text-center p-2 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg">
-              <div className="text-lg font-bold text-orange-600">{filteredCount}</div>
-              <div className="text-xs text-gray-600">該当</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
-              <div className="text-lg font-bold text-green-600">{openCount}</div>
-              <div className="text-xs text-gray-600">営業中</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-red-50 to-pink-50 rounded-lg">
-              <div className="text-lg font-bold text-red-600">{favoriteCount}</div>
-              <div className="text-xs text-gray-600">お気に入り</div>
-            </div>
-            <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-              <div className="text-lg font-bold text-blue-600">{totalCount}</div>
-              <div className="text-xs text-gray-600">総店舗</div>
-            </div>
-          </div>
-
-          {/* クイックアクション */}
-          <div className="flex gap-2">
-            <button
-              onClick={onLocationClick}
-              disabled={isLocating}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                isLocating 
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
-              }`}
+        {/* フィルターセクション */}
+        <div className="filter-section">
+          <div className="filter-group">
+            <div className="filter-label">📂 カテゴリー</div>
+            <select
+              className="filter-select"
+              value={filters.category}
+              onChange={(e) => onFiltersChange({ category: e.target.value as FilterState['category'] })}
             >
-              {isLocating ? '📍 取得中...' : '📍 現在地取得'}
-            </button>
-            <button
-              onClick={onRefresh}
-              className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 text-xs font-medium transition-all"
+              <option value="all">すべてのカテゴリー</option>
+              {Object.entries(CATEGORIES).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <div className="filter-label">💰 価格帯</div>
+            <select
+              className="filter-select"
+              value={filters.priceRange}
+              onChange={(e) => onFiltersChange({ priceRange: e.target.value as FilterState['priceRange'] })}
             >
-              🔄 更新
-            </button>
+              <option value="all">すべての価格帯</option>
+              {Object.entries(PRICE_RANGES).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        {/* クイックフィルター（常時表示） */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex flex-wrap gap-2">
-            <FilterTag
-              label="🕐 営業中"
-              active={filters.isOpenNow}
-              onClick={() => onFiltersChange({ isOpenNow: !filters.isOpenNow })}
-            />
-            <FilterTag
-              label="📶 Wi-Fi"
-              active={filters.features.includes('wifi')}
-              onClick={() => {
-                const hasWifi = filters.features.includes('wifi')
-                onFiltersChange({ 
-                  features: hasWifi 
-                    ? filters.features.filter(f => f !== 'wifi')
-                    : [...filters.features, 'wifi']
-                })
+          <div className="filter-group">
+            <div className="filter-label">📍 距離</div>
+            <select
+              className="filter-select"
+              value={filters.distance.enabled ? filters.distance.maxKm : 'all'}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value === 'all') {
+                  onFiltersChange({ distance: { enabled: false, maxKm: 5 } })
+                } else {
+                  onFiltersChange({ distance: { enabled: true, maxKm: parseInt(value) } })
+                }
               }}
-            />
-            <FilterTag
-              label="🔌 電源"
-              active={filters.features.includes('power')}
-              onClick={() => {
-                const hasPower = filters.features.includes('power')
-                onFiltersChange({ 
-                  features: hasPower 
-                    ? filters.features.filter(f => f !== 'power')
-                    : [...filters.features, 'power']
-                })
-              }}
-            />
-            <FilterTag
-              label="❤️ お気に入り"
-              active={filters.showFavoritesOnly}
-              onClick={() => onFiltersChange({ showFavoritesOnly: !filters.showFavoritesOnly })}
-            />
+            >
+              <option value="all">距離指定なし</option>
+              <option value="1">1km以内</option>
+              <option value="2">2km以内</option>
+              <option value="3">3km以内</option>
+              <option value="5">5km以内</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <div className="filter-label">📊 並び順</div>
+            <select
+              className="filter-select"
+              value={sortState.option}
+              onChange={(e) => onSortChange({ ...sortState, option: e.target.value as SortState['option'] })}
+            >
+              <option value="rating">⭐ 評価順</option>
+              <option value="distance" disabled={!hasLocation}>📍 距離順</option>
+              <option value="review_count">💬 レビュー数順</option>
+              <option value="newest">🆕 新着順</option>
+              <option value="price_low">💰 価格安順</option>
+              <option value="price_high">💎 価格高順</option>
+              <option value="name">🔤 名前順</option>
+              <option value="random">🎲 ランダム</option>
+            </select>
           </div>
         </div>
 
-        {/* 詳細フィルター（展開可能） */}
-        <div className={`border-b border-gray-100 transition-all ${isExpanded ? '' : 'max-h-0 overflow-hidden'}`}>
-          <div className="p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-              🔧 詳細フィルター
-            </h3>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">カテゴリー</label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => onFiltersChange({ category: e.target.value as FilterState['category'] })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="all">すべて</option>
-                  {Object.entries(CATEGORIES).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">価格帯</label>
-                <select
-                  value={filters.priceRange}
-                  onChange={(e) => onFiltersChange({ priceRange: e.target.value as FilterState['priceRange'] })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="all">すべて</option>
-                  {Object.entries(PRICE_RANGES).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-700 mb-1">距離</label>
-              <select
-                value={filters.distance.enabled ? filters.distance.maxKm : 'all'}
-                onChange={(e) => {
-                  const value = e.target.value
-                  if (value === 'all') {
-                    onFiltersChange({ distance: { enabled: false, maxKm: 5 } })
-                  } else {
-                    onFiltersChange({ distance: { enabled: true, maxKm: parseInt(value) } })
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="all">距離指定なし</option>
-                <option value="1">1km以内</option>
-                <option value="2">2km以内</option>
-                <option value="3">3km以内</option>
-                <option value="5">5km以内</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">並び順</label>
-              <select
-                value={sortState.option}
-                onChange={(e) => onSortChange({ ...sortState, option: e.target.value as SortState['option'] })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="rating">⭐ 評価順</option>
-                <option value="distance" disabled={!hasLocation}>📍 距離順</option>
-                <option value="review_count">💬 レビュー数順</option>
-                <option value="newest">🆕 新着順</option>
-                <option value="price_low">💰 価格安順</option>
-                <option value="price_high">💎 価格高順</option>
-                <option value="name">🔤 名前順</option>
-                <option value="random">🎲 ランダム</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* フッター */}
-        <div className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl flex justify-between items-center">
+        {/* クイックアクション */}
+        <div className="quick-actions">
+          <FilterTag
+            label="📍 現在地周辺"
+            active={filters.distance.enabled}
+            onClick={() => {
+              if (!filters.distance.enabled && onLocationClick) {
+                onLocationClick()
+              }
+              onFiltersChange({ 
+                distance: { 
+                  enabled: !filters.distance.enabled, 
+                  maxKm: filters.distance.enabled ? 5 : 1 
+                } 
+              })
+            }}
+          />
+          <FilterTag
+            label="📶 Wi-Fi完備"
+            active={filters.features.includes('wifi')}
+            onClick={() => {
+              const hasWifi = filters.features.includes('wifi')
+              onFiltersChange({ 
+                features: hasWifi 
+                  ? filters.features.filter(f => f !== 'wifi')
+                  : [...filters.features, 'wifi']
+              })
+            }}
+          />
+          <FilterTag
+            label="🔌 電源あり"
+            active={filters.features.includes('power')}
+            onClick={() => {
+              const hasPower = filters.features.includes('power')
+              onFiltersChange({ 
+                features: hasPower 
+                  ? filters.features.filter(f => f !== 'power')
+                  : [...filters.features, 'power']
+              })
+            }}
+          />
+          <FilterTag
+            label="🕐 営業中"
+            active={filters.isOpenNow}
+            onClick={() => onFiltersChange({ isOpenNow: !filters.isOpenNow })}
+          />
+          <FilterTag
+            label="⭐ 高評価"
+            active={filters.minRating >= 4}
+            onClick={() => onFiltersChange({ minRating: filters.minRating >= 4 ? 0 : 4 })}
+          />
+          <FilterTag
+            label="❤️ お気に入り"
+            active={filters.showFavoritesOnly}
+            onClick={() => onFiltersChange({ showFavoritesOnly: !filters.showFavoritesOnly })}
+          />
+          <FilterTag
+            label="📚 読書向け"
+            active={filters.tags.includes('読書歓迎')}
+            onClick={() => {
+              const hasTag = filters.tags.includes('読書歓迎')
+              onFiltersChange({
+                tags: hasTag
+                  ? filters.tags.filter(t => t !== '読書歓迎')
+                  : [...filters.tags, '読書歓迎']
+              })
+            }}
+          />
+          <FilterTag
+            label="💻 PC作業可"
+            active={filters.tags.includes('PC作業可')}
+            onClick={() => {
+              const hasTag = filters.tags.includes('PC作業可')
+              onFiltersChange({
+                tags: hasTag
+                  ? filters.tags.filter(t => t !== 'PC作業可')
+                  : [...filters.tags, 'PC作業可']
+              })
+            }}
+          />
+          <FilterTag
+            label="🚭 完全禁煙"
+            active={filters.tags.includes('完全禁煙')}
+            onClick={() => {
+              const hasTag = filters.tags.includes('完全禁煙')
+              onFiltersChange({
+                tags: hasTag
+                  ? filters.tags.filter(t => t !== '完全禁煙')
+                  : [...filters.tags, '完全禁煙']
+              })
+            }}
+          />
+          <FilterTag
+            label="🅿️ 駐車場あり"
+            active={filters.tags.includes('駐車場あり')}
+            onClick={() => {
+              const hasTag = filters.tags.includes('駐車場あり')
+              onFiltersChange({
+                tags: hasTag
+                  ? filters.tags.filter(t => t !== '駐車場あり')
+                  : [...filters.tags, '駐車場あり']
+              })
+            }}
+          />
+          <FilterTag
+            label="🌙 夜も営業"
+            active={filters.tags.includes('夜営業')}
+            onClick={() => {
+              const hasTag = filters.tags.includes('夜営業')
+              onFiltersChange({
+                tags: hasTag
+                  ? filters.tags.filter(t => t !== '夜営業')
+                  : [...filters.tags, '夜営業']
+              })
+            }}
+          />
+          <button
+            onClick={onLocationClick}
+            disabled={isLocating}
+            className={`quick-btn ${isLocating ? 'disabled' : ''}`}
+          >
+            {isLocating ? '📍 取得中...' : '📍 現在地取得'}
+          </button>
+          <button
+            onClick={onRefresh}
+            className="quick-btn"
+          >
+            🔄 更新
+          </button>
           <button
             onClick={onFiltersClear}
-            className="text-xs text-gray-600 hover:text-gray-800 transition-colors"
+            className="quick-btn"
           >
-            🗑️ フィルターリセット
+            🗑️ リセット
           </button>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
-          >
-            {isExpanded ? '▲ 閉じる' : '▼ 詳細設定'}
-          </button>
+        </div>
+
+        {/* 統計ダッシュボード */}
+        <div className="stats-dashboard">
+          <div className="stat-card">
+            <div className="stat-number">{filteredCount}</div>
+            <div className="stat-label">該当店舗</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">{openCount}</div>
+            <div className="stat-label">営業中</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">{favoriteCount}</div>
+            <div className="stat-label">お気に入り</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">{totalCount}</div>
+            <div className="stat-label">総店舗</div>
+          </div>
         </div>
       </div>
     </div>
@@ -506,7 +512,7 @@ export default function Map({ refreshTrigger }: MapProps) {
   const { user } = useUser()
   const { openAuthModal, AuthModal } = useAuthModal()
 
-  // 状態管理 - hooksを最初にまとめて定義
+  // 状態管理
   const [shops, setShops] = useState<ShopWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -728,6 +734,14 @@ export default function Map({ refreshTrigger }: MapProps) {
       if (filters.distance.enabled && currentLocation && 
           (shop.distance === undefined || shop.distance > filters.distance.maxKm)) return false
 
+      // タグ
+      if (filters.tags.length > 0) {
+        const shopTagNames = shop.tags?.map(tag => tag.tag) || []
+        for (const filterTag of filters.tags) {
+          if (!shopTagNames.includes(filterTag)) return false
+        }
+      }
+
       return true
     })
   }, [favorites, isOpenNow, currentLocation])
@@ -852,6 +866,23 @@ export default function Map({ refreshTrigger }: MapProps) {
 
   return (
     <div className="h-full w-full relative">
+      {/* 検索・フィルターエリア */}
+      <IntegratedSidebar
+        filters={filters}
+        sortState={sortState}
+        hasLocation={!!currentLocation}
+        isLocating={isLocating}
+        filteredCount={statistics.filteredCount}
+        totalCount={statistics.totalCount}
+        openCount={statistics.openCount}
+        favoriteCount={statistics.favoriteCount}
+        onFiltersChange={handleFiltersChange}
+        onSortChange={setSortState}
+        onLocationClick={getCurrentLocation}
+        onRefresh={fetchShops}
+        onFiltersClear={handleFiltersClear}
+      />
+
       {/* 地図 */}
       <MapContainer 
         center={mapCenter}
@@ -866,10 +897,9 @@ export default function Map({ refreshTrigger }: MapProps) {
           bottom: 0,
           zIndex: 1
         }}
-        zoomControl={false}
+        zoomControl={true}
       >
         <ChangeMapView center={mapCenter} zoom={mapZoom} />
-        <MapResizer sidePanelOpen={sidePanelOpen} />
         
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -982,23 +1012,6 @@ export default function Map({ refreshTrigger }: MapProps) {
         ))}
       </MapContainer>
 
-      {/* 統合サイドバー */}
-      <IntegratedSidebar
-        filters={filters}
-        sortState={sortState}
-        hasLocation={!!currentLocation}
-        isLocating={isLocating}
-        filteredCount={statistics.filteredCount}
-        totalCount={statistics.totalCount}
-        openCount={statistics.openCount}
-        favoriteCount={statistics.favoriteCount}
-        onFiltersChange={handleFiltersChange}
-        onSortChange={setSortState}
-        onLocationClick={getCurrentLocation}
-        onRefresh={fetchShops}
-        onFiltersClear={handleFiltersClear}
-      />
-
       {/* 店舗が見つからない場合 */}
       {statistics.filteredCount === 0 && !loading && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[500]">
@@ -1031,6 +1044,206 @@ export default function Map({ refreshTrigger }: MapProps) {
 
       {/* カスタムスタイル */}
       <style jsx global>{`
+        /* 検索・フィルターエリア */
+        .search-filter-area {
+          max-width: 1200px;
+          margin: 1.5rem auto;
+          padding: 0 1rem;
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 500;
+          width: 100%;
+        }
+
+        .search-container {
+          background: var(--glass-bg);
+          backdrop-filter: blur(15px);
+          border: 1px solid var(--glass-border);
+          border-radius: 16px;
+          padding: 1.5rem;
+          margin-bottom: 1rem;
+          box-shadow: 0 8px 24px var(--glass-shadow);
+          transition: all 0.3s ease;
+        }
+
+        .search-bar {
+          position: relative;
+          margin-bottom: 1rem;
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 1rem 1rem 1rem 3rem;
+          border: 2px solid var(--current-border);
+          border-radius: 12px;
+          background: var(--current-secondary-bg);
+          color: var(--current-text-primary);
+          font-size: 1rem;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: var(--accent-warm);
+          box-shadow: 0 0 0 4px rgba(255, 140, 66, 0.1);
+          transform: translateY(-1px);
+        }
+
+        .search-icon {
+          position: absolute;
+          left: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 1.2rem;
+          color: var(--accent-warm);
+        }
+
+        /* フィルターセクション */
+        .filter-section {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .filter-group {
+          background: var(--current-secondary-bg);
+          border: 1px solid var(--current-border);
+          border-radius: 12px;
+          padding: 1rem;
+          transition: all 0.3s ease;
+        }
+
+        .filter-group:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .filter-label {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--current-text-secondary);
+          margin-bottom: 0.5rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .filter-select {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid var(--current-border);
+          border-radius: 8px;
+          background: var(--current-tertiary-bg);
+          color: var(--current-text-primary);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .filter-select:focus {
+          outline: none;
+          border-color: var(--accent-warm);
+          box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.1);
+        }
+
+        /* クイックアクション */
+        .quick-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .quick-btn {
+          padding: 0.6rem 1rem;
+          border: 1px solid var(--current-border);
+          border-radius: 20px;
+          background: var(--current-secondary-bg);
+          color: var(--current-text-primary);
+          font-size: 0.85rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          white-space: nowrap;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .quick-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.5s ease;
+        }
+
+        .quick-btn:hover::before {
+          left: 100%;
+        }
+
+        .quick-btn:hover,
+        .quick-btn.active {
+          background: var(--accent-warm);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+        }
+
+        .quick-btn.disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* 統計ダッシュボード */
+        .stats-dashboard {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 1rem;
+          background: var(--current-secondary-bg);
+          border: 1px solid var(--current-border);
+          border-radius: 12px;
+          padding: 1rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .stat-card {
+          text-align: center;
+          padding: 0.75rem;
+          background: var(--current-tertiary-bg);
+          border-radius: 8px;
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .stat-card:hover {
+          transform: scale(1.05);
+          background: var(--accent-warm);
+          color: white;
+        }
+
+        .stat-number {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--accent-coffee);
+          margin-bottom: 0.25rem;
+        }
+
+        .stat-card:hover .stat-number {
+          color: white;
+        }
+
+        .stat-label {
+          font-size: 0.7rem;
+          color: var(--current-text-muted);
+          font-weight: 500;
+        }
+
         /* Leaflet ポップアップカスタマイズ */
         .custom-popup .leaflet-popup-content-wrapper {
           background: rgba(255, 255, 255, 0.98);
@@ -1089,6 +1302,114 @@ export default function Map({ refreshTrigger }: MapProps) {
             opacity: 1;
             transform: scale(1) translateY(0);
           }
+        }
+
+        /* ズームコントロールを右側に移動 */
+        .leaflet-top.leaflet-right {
+          top: 20px;
+          right: 20px;
+        }
+
+        .leaflet-control-zoom {
+          border: none;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .leaflet-control-zoom a {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          color: #374151;
+          font-weight: bold;
+          border: none;
+          transition: all 0.2s ease;
+        }
+
+        .leaflet-control-zoom a:hover {
+          background: #FF8C42;
+          color: white;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+          .search-filter-area {
+            margin: 1rem auto;
+            padding: 0 0.5rem;
+          }
+
+          .search-container {
+            padding: 1rem;
+          }
+
+          .filter-section {
+            grid-template-columns: 1fr;
+          }
+
+          .quick-actions {
+            justify-content: center;
+          }
+
+          .stats-dashboard {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .leaflet-popup-content {
+            font-size: 14px;
+          }
+          
+          .custom-marker {
+            transform: scale(0.9);
+          }
+          
+          .custom-marker:hover {
+            transform: scale(1.1);
+          }
+        }
+
+        /* アクセシビリティ向上 */
+        @media (prefers-reduced-motion: reduce) {
+          .custom-marker,
+          .marker-appear {
+            animation: none;
+            transition: none;
+          }
+          
+          .custom-marker:hover {
+            transform: scale(1.1);
+          }
+        }
+
+        /* ハイコントラストモード対応 */
+        @media (prefers-contrast: high) {
+          .custom-popup .leaflet-popup-content-wrapper {
+            background: white;
+            border: 2px solid black;
+          }
+          
+          .custom-popup .leaflet-popup-tip {
+            background: white;
+            border: 2px solid black;
+          }
+        }
+
+        /* スクロールバーカスタマイズ */
+        .leaflet-popup-content::-webkit-scrollbar {
+          width: 4px;
+        }
+        
+        .leaflet-popup-content::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        
+        .leaflet-popup-content::-webkit-scrollbar-thumb {
+          background: #FF8C42;
+          border-radius: 4px;
+        }
+        
+        .leaflet-popup-content::-webkit-scrollbar-thumb:hover {
+          background: #e67e22;
         }
       `}</style>
     </div>
