@@ -1,23 +1,20 @@
-/* app/globals.css - Coffee Map完全統合版 */
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* =================================
-   CSS Variables - テーマシステム
+   Coffee Map - グローバルスタイル
    ================================= */
 
+/* CSS変数定義 */
 :root {
-  /* ブランドカラー */
   --accent-coffee: #6F4E37;
   --accent-warm: #FF8C42;
   --accent-gold: #D4AF37;
-  --accent-green: #22C55E;
-  --accent-red: #EF4444;
+  --accent-green: #228B22;
+  --accent-red: #DC143C;
   --accent-blue: #3B82F6;
-  --accent-purple: #8B5CF6;
   
-  /* ライトテーマ */
   --current-primary-bg: #F8F5F0;
   --current-secondary-bg: #FFFFFF;
   --current-tertiary-bg: #FFF8F0;
@@ -25,16 +22,9 @@
   --current-text-secondary: #666666;
   --current-text-muted: #999999;
   --current-border: rgba(0, 0, 0, 0.1);
-  --current-shadow: rgba(0, 0, 0, 0.1);
-  
-  /* グラデーション */
-  --gradient-warm: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
-  --gradient-gold: linear-gradient(45deg, var(--accent-gold), var(--accent-warm));
-  --gradient-coffee: linear-gradient(135deg, var(--accent-coffee), var(--accent-gold));
 }
 
-.dark-mode {
-  /* ダークテーマ */
+.dark {
   --current-primary-bg: #0F0F0F;
   --current-secondary-bg: #1A1A1A;
   --current-tertiary-bg: #2D2D2D;
@@ -42,449 +32,193 @@
   --current-text-secondary: #CCCCCC;
   --current-text-muted: #999999;
   --current-border: rgba(255, 255, 255, 0.1);
-  --current-shadow: rgba(0, 0, 0, 0.3);
 }
 
-/* =================================
-   基本設定
-   ================================= */
-
+/* ベーススタイル */
 * {
   box-sizing: border-box;
-  margin: 0;
   padding: 0;
+  margin: 0;
 }
 
-html {
-  scroll-behavior: smooth;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
+html,
 body {
-  font-family: 
-    'Inter', 
-    -apple-system, 
-    BlinkMacSystemFont, 
-    'Segoe UI', 
-    Roboto, 
-    'Helvetica Neue', 
-    Arial, 
-    sans-serif;
-  background: var(--current-primary-bg);
-  color: var(--current-text-primary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 100vw;
   overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* =================================
-   グラス効果・モダンスタイル
-   ================================= */
-
-.glass {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .glass {
-  background: rgba(26, 26, 26, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.glass-sm {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .glass-sm {
-  background: rgba(45, 45, 45, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-/* =================================
-   ボタンスタイル
-   ================================= */
-
-.btn-glass {
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  background: rgba(255, 255, 255, 0.9);
+body {
+  background: var(--current-primary-bg);
   color: var(--current-text-primary);
-  border: 1px solid var(--current-border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.btn-glass:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  background: rgba(255, 255, 255, 1);
-}
-
-.btn-glass:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .btn-glass {
-  background: rgba(45, 45, 45, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark-mode .btn-glass:hover {
-  background: rgba(45, 45, 45, 1);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-}
-
-/* =================================
-   ホバー効果
-   ================================= */
-
-.hover-lift {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-}
-
-.hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
-}
-
-.hover-glow {
-  transition: all 0.3s ease;
-}
-
-.hover-glow:hover {
-  box-shadow: 0 0 20px rgba(255, 140, 66, 0.4);
-  filter: brightness(1.05);
-}
-
-.shadow-glow {
-  box-shadow: 0 0 15px rgba(255, 140, 66, 0.3);
-}
-
-/* =================================
-   カード系コンポーネント
-   ================================= */
-
-.coffee-card {
-  background: var(--current-secondary-bg);
-  border: 1px solid var(--current-border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  position: relative;
-  overflow: hidden;
-}
-
-.coffee-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-warm);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-}
-
-.coffee-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-  border-color: rgba(255, 140, 66, 0.3);
-}
-
-.coffee-card:hover::before {
-  transform: scaleX(1);
-}
-
-/* =================================
-   グラデーションテキスト
-   ================================= */
-
-.gradient-text {
-  background: var(--gradient-warm);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-}
-
-/* =================================
-   アニメーション
-   ================================= */
-
-@keyframes gentle-pulse {
-  0%, 100% { 
-    transform: scale(1); 
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+/* Tailwind CSS Utilities */
+@layer utilities {
+  /* グラスモーフィズム効果 */
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
-  50% { 
-    transform: scale(1.05); 
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+
+  .dark .glass {
+    background: rgba(26, 26, 26, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-sm {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .glass-sm {
+    background: rgba(45, 45, 45, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* グラデーションテキスト */
+  .gradient-text {
+    background: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ホバーエフェクト */
+  .hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ボタンスタイル */
+  .btn-glass {
+    @apply px-4 py-2 rounded-lg font-medium transition-all;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-glass:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .dark .btn-glass {
+    background: rgba(45, 45, 45, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* シャドウ効果 */
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(255, 140, 66, 0.4);
+  }
+
+  /* スクロールバー */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-track {
+    background: #2d2d2d;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
   }
 }
 
-@keyframes float {
-  0%, 100% { 
-    transform: translateY(0px); 
-  }
-  50% { 
-    transform: translateY(-8px); 
-  }
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
+/* アニメーション */
+@keyframes pulse {
+  0%, 100% {
     opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes bounce-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
   }
   50% {
-    opacity: 1;
-    transform: scale(1.05);
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
   }
   70% {
-    transform: scale(0.9);
+    transform: translate3d(0, -4px, 0);
   }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
+  90% {
+    transform: translate3d(0, -2px, 0);
   }
 }
 
-.animate-gentle-pulse {
-  animation: gentle-pulse 4s ease-in-out infinite;
+/* ユーティリティクラス */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.6s ease-out;
+.animate-bounce {
+  animation: bounce 1s infinite;
 }
 
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
+/* フォーカススタイル */
+.focus-ring:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
 }
 
-.animate-bounce-in {
-  animation: bounce-in 0.6s ease-out;
-}
-
-/* =================================
-   フォーム要素
-   ================================= */
-
-input, textarea, select {
-  background: var(--current-secondary-bg);
-  border: 1px solid var(--current-border);
-  color: var(--current-text-primary);
-  transition: all 0.2s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: var(--accent-warm);
-  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
-}
-
-input::placeholder, textarea::placeholder {
-  color: var(--current-text-muted);
-}
-
-/* =================================
-   スクロールバー
-   ================================= */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--current-tertiary-bg);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
-  border-radius: 4px;
-  border: 1px solid var(--current-border);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(45deg, #5a3e2b, #e67e22);
-}
-
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-warm) var(--current-tertiary-bg);
-}
-
-/* =================================
-   選択テキスト
-   ================================= */
-
-::selection {
-  background: rgba(255, 140, 66, 0.3);
-  color: var(--current-text-primary);
-}
-
-::-moz-selection {
-  background: rgba(255, 140, 66, 0.3);
-  color: var(--current-text-primary);
-}
-
-/* =================================
-   ローディング・スケルトン
-   ================================= */
-
-.loading-skeleton {
-  background: linear-gradient(90deg, 
-    var(--current-tertiary-bg) 25%, 
-    rgba(255, 255, 255, 0.5) 50%, 
-    var(--current-tertiary-bg) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-.dark-mode .loading-skeleton {
-  background: linear-gradient(90deg, 
-    #2D2D2D 25%, 
-    rgba(255, 255, 255, 0.1) 50%, 
-    #2D2D2D 75%
-  );
-  background-size: 200% 100%;
-}
-
-/* =================================
-   ユーティリティクラス
-   ================================= */
-
-.text-shadow {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.border-gradient {
-  border: 2px solid;
-  border-image: var(--gradient-warm) 1;
-  border-radius: 12px;
-}
-
-.bg-pattern {
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(255, 140, 66, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(111, 78, 55, 0.1) 0%, transparent 50%);
-}
-
-/* =================================
-   レスポンシブ対応
-   ================================= */
-
+/* レスポンシブデザイン */
 @media (max-width: 768px) {
-  html {
-    font-size: 14px;
-  }
-  
-  .coffee-card {
-    padding: 1rem;
-    border-radius: 12px;
-  }
-  
-  .btn-glass {
-    padding: 0.625rem 1rem;
-    font-size: 0.8rem;
-    min-height: 40px;
-  }
-  
-  .glass, .glass-sm {
+  .glass,
+  .glass-sm {
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }
 
-@media (max-width: 480px) {
-  html {
-    font-size: 13px;
-  }
-  
-  .coffee-card {
-    padding: 0.75rem;
-    border-radius: 8px;
-  }
-  
-  .btn-glass {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
-    min-height: 36px;
-  }
-}
-
-/* =================================
-   アクセシビリティ
-   ================================= */
-
-/* 動きを減らす設定 */
+/* アクセシビリティ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -494,154 +228,64 @@ input::placeholder, textarea::placeholder {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  
-  .hover-lift:hover {
-    transform: none;
-  }
-  
-  .coffee-card:hover {
-    transform: none;
-  }
 }
 
 /* ハイコントラストモード */
 @media (prefers-contrast: high) {
-  :root {
-    --current-border: #000000;
-    --current-text-muted: #000000;
+  .glass,
+  .glass-sm {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(0, 0, 0, 0.8);
   }
-  
-  .dark-mode {
-    --current-border: #FFFFFF;
-    --current-text-muted: #FFFFFF;
-  }
-  
-  .glass, .glass-sm {
-    background: var(--current-secondary-bg);
-    border: 2px solid var(--current-border);
-  }
-  
-  .btn-glass {
-    background: var(--current-secondary-bg);
-    border: 2px solid var(--current-border);
+
+  .dark .glass,
+  .dark .glass-sm {
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.8);
   }
 }
 
-/* フォーカス表示の改善 */
-.focus-visible:focus {
-  outline: 2px solid var(--accent-warm);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--accent-warm);
-  outline-offset: 2px;
-}
-
-/* =================================
-   印刷対応
-   ================================= */
-
+/* 印刷対応 */
 @media print {
-  * {
-    background: white !important;
-    color: black !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-  
-  .glass, .glass-sm {
-    background: white !important;
-    border: 1px solid #ccc !important;
-  }
-  
+  .glass,
+  .glass-sm,
   .btn-glass {
     background: white !important;
-    border: 1px solid #000 !important;
-    color: black !important;
-  }
-  
-  .coffee-card {
+    backdrop-filter: none !important;
     border: 1px solid #ccc !important;
-    page-break-inside: avoid;
   }
-  
-  .animate-gentle-pulse,
-  .animate-float,
-  .hover-lift {
+
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce {
     animation: none !important;
-    transform: none !important;
   }
 }
 
-/* =================================
-   カスタムセレクション
-   ================================= */
-
-.no-select {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+/* Next.js特有のスタイル */
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.select-all {
-  -webkit-user-select: all;
-  -moz-user-select: all;
-  -ms-user-select: all;
-  user-select: all;
+/* Leaflet地図のスタイル調整 */
+.leaflet-container {
+  font-family: inherit;
 }
 
-/* =================================
-   パフォーマンス最適化
-   ================================= */
-
-.gpu-accelerated {
-  transform: translateZ(0);
-  will-change: transform;
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
 }
 
-.will-change-transform {
-  will-change: transform;
+.leaflet-popup-tip {
+  background: white;
 }
 
-.will-change-opacity {
-  will-change: opacity;
+/* カスタムクラス */
+.text-shadow {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.will-change-auto {
-  will-change: auto;
-}
-
-/* =================================
-   Z-Index レイヤー
-   ================================= */
-
-.z-behind {
-  z-index: -1;
-}
-
-.z-normal {
-  z-index: 1;
-}
-
-.z-tooltip {
-  z-index: 1000;
-}
-
-.z-overlay {
-  z-index: 1100;
-}
-
-.z-modal {
-  z-index: 1200;
-}
-
-.z-toast {
-  z-index: 1300;
+.text-shadow-lg {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

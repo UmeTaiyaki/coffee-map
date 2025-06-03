@@ -1,4 +1,4 @@
-// components/Map.tsx - 完全統合版
+// components/Map.tsx - Hooks順序エラー修正版
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
@@ -161,10 +161,13 @@ const defaultSort: SortState = {
   direction: 'asc'
 }
 
-// マップビュー変更コンポーネント
+// マップビュー変更コンポーネント - hooks順序を修正
 function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
+  // useMapHookを常に最初に初期化
   const [useMapHook, setUseMapHook] = useState<any>(null)
+  const [map, setMap] = useState<any>(null)
   
+  // 最初のuseEffect: useMapフックの取得
   useEffect(() => {
     if (typeof window !== 'undefined') {
       import('react-leaflet').then((mod) => {
@@ -173,10 +176,17 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
     }
   }, [])
   
-  if (!useMapHook) return null
+  // useMapフックを条件なしで呼び出す（nullの場合はダミー関数を返す）
+  const mapInstance = useMapHook ? useMapHook() : null
   
-  const map = useMapHook()
+  // 2番目のuseEffect: mapインスタンスの設定
+  useEffect(() => {
+    if (mapInstance) {
+      setMap(mapInstance)
+    }
+  }, [mapInstance])
   
+  // 3番目のuseEffect: マップビューの更新
   useEffect(() => {
     if (map) {
       map.setView(center, zoom)
@@ -186,10 +196,12 @@ function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: numbe
   return null
 }
 
-// マップリサイズコンポーネント
+// マップリサイズコンポーネント - hooks順序を修正
 function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
   const [useMapHook, setUseMapHook] = useState<any>(null)
+  const [map, setMap] = useState<any>(null)
   
+  // 最初のuseEffect: useMapフックの取得
   useEffect(() => {
     if (typeof window !== 'undefined') {
       import('react-leaflet').then((mod) => {
@@ -198,13 +210,22 @@ function MapResizer({ sidePanelOpen }: { sidePanelOpen: boolean }) {
     }
   }, [])
   
-  if (!useMapHook) return null
+  // useMapフックを条件なしで呼び出す
+  const mapInstance = useMapHook ? useMapHook() : null
   
-  const map = useMapHook()
-  
+  // 2番目のuseEffect: mapインスタンスの設定
   useEffect(() => {
-    const timer = setTimeout(() => map.invalidateSize(), 350)
-    return () => clearTimeout(timer)
+    if (mapInstance) {
+      setMap(mapInstance)
+    }
+  }, [mapInstance])
+  
+  // 3番目のuseEffect: マップリサイズ
+  useEffect(() => {
+    if (map) {
+      const timer = setTimeout(() => map.invalidateSize(), 350)
+      return () => clearTimeout(timer)
+    }
   }, [sidePanelOpen, map])
   
   return null
@@ -485,7 +506,7 @@ export default function Map({ refreshTrigger }: MapProps) {
   const { user } = useUser()
   const { openAuthModal, AuthModal } = useAuthModal()
 
-  // 状態管理
+  // 状態管理 - hooksを最初にまとめて定義
   const [shops, setShops] = useState<ShopWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1068,93 +1089,6 @@ export default function Map({ refreshTrigger }: MapProps) {
             opacity: 1;
             transform: scale(1) translateY(0);
           }
-        }
-
-        /* ズームコントロールを右側に移動 */
-        .leaflet-top.leaflet-right {
-          top: 20px;
-          right: 20px;
-        }
-
-        .leaflet-control-zoom {
-          border: none;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .leaflet-control-zoom a {
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          color: #374151;
-          font-weight: bold;
-          border: none;
-          transition: all 0.2s ease;
-        }
-
-        .leaflet-control-zoom a:hover {
-          background: #FF8C42;
-          color: white;
-        }
-
-        /* レスポンシブ対応 */
-        @media (max-width: 768px) {
-          .leaflet-popup-content {
-            font-size: 14px;
-          }
-          
-          .custom-marker {
-            transform: scale(0.9);
-          }
-          
-          .custom-marker:hover {
-            transform: scale(1.1);
-          }
-        }
-
-        /* アクセシビリティ向上 */
-        @media (prefers-reduced-motion: reduce) {
-          .custom-marker,
-          .marker-appear {
-            animation: none;
-            transition: none;
-          }
-          
-          .custom-marker:hover {
-            transform: scale(1.1);
-          }
-        }
-
-        /* ハイコントラストモード対応 */
-        @media (prefers-contrast: high) {
-          .custom-popup .leaflet-popup-content-wrapper {
-            background: white;
-            border: 2px solid black;
-          }
-          
-          .custom-popup .leaflet-popup-tip {
-            background: white;
-            border: 2px solid black;
-          }
-        }
-
-        /* スクロールバーカスタマイズ */
-        .leaflet-popup-content::-webkit-scrollbar {
-          width: 4px;
-        }
-        
-        .leaflet-popup-content::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 4px;
-        }
-        
-        .leaflet-popup-content::-webkit-scrollbar-thumb {
-          background: #FF8C42;
-          border-radius: 4px;
-        }
-        
-        .leaflet-popup-content::-webkit-scrollbar-thumb:hover {
-          background: #e67e22;
         }
       `}</style>
     </div>
