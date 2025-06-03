@@ -13,6 +13,8 @@ interface EnhancedSearchFilterProps {
   newCount: number
   onFiltersChange: (filters: Partial<FilterState>) => void
   onSortChange: (sort: SortOption) => void
+  onGetCurrentLocation?: () => void
+  hasLocation?: boolean
 }
 
 export default function EnhancedSearchFilter({
@@ -24,7 +26,9 @@ export default function EnhancedSearchFilter({
   favoriteCount,
   newCount,
   onFiltersChange,
-  onSortChange
+  onSortChange,
+  onGetCurrentLocation,
+  hasLocation = false
 }: EnhancedSearchFilterProps) {
   const [searchQuery, setSearchQuery] = useState(filters.search)
   const [quickFilters, setQuickFilters] = useState({
@@ -75,6 +79,9 @@ export default function EnhancedSearchFilter({
         break
       case 'nearMe':
         if (newState.nearMe) {
+          if (!hasLocation && onGetCurrentLocation) {
+            onGetCurrentLocation()
+          }
           onFiltersChange({ distance: { enabled: true, maxKm: 1 } })
         } else {
           onFiltersChange({ distance: { enabled: false, maxKm: 5 } })

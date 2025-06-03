@@ -11,6 +11,14 @@ interface ThemeContextType {
   setDensity: (density: Density) => void
 }
 
+// デフォルト値を設定
+const defaultContext: ThemeContextType = {
+  theme: 'light',
+  density: 'detailed',
+  toggleTheme: () => {},
+  setDensity: () => {}
+}
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -20,15 +28,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // 初期化時にローカルストレージから設定を読み込む
   useEffect(() => {
-    const savedTheme = localStorage.getItem('coffee-map-theme') as Theme
-    const savedDensity = localStorage.getItem('coffee-map-density') as Density
-    
-    if (savedTheme) {
-      setTheme(savedTheme)
-    }
-    
-    if (savedDensity) {
-      setDensity(savedDensity)
+    try {
+      const savedTheme = localStorage.getItem('coffee-map-theme') as Theme
+      const savedDensity = localStorage.getItem('coffee-map-density') as Density
+      
+      if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+        setTheme(savedTheme)
+      }
+      
+      if (savedDensity && (savedDensity === 'compact' || savedDensity === 'detailed')) {
+        setDensity(savedDensity)
+      }
+    } catch (error) {
+      console.error('テーマ設定の読み込みエラー:', error)
     }
     
     setMounted(true)
@@ -46,21 +58,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.remove('dark')
     }
     
-    localStorage.setItem('coffee-map-theme', theme)
+    try {
+      localStorage.setItem('coffee-map-theme', theme)
+    } catch (error) {
+      console.error('テーマ設定の保存エラー:', error)
+    }
   }, [theme, mounted])
 
   // 密度が変更されたときの処理
   useEffect(() => {
     if (!mounted) return
     
-    localStorage.setItem('coffee-map-density', density)
+    try {
+      localStorage.setItem('coffee-map-density', density)
+    } catch (error) {
+      console.error('密度設定の保存エラー:', error)
+    }
   }, [density, mounted])
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light')
   }
 
-  const value = {
+  const value: ThemeContextType = {
     theme,
     density,
     toggleTheme,
@@ -69,7 +89,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // 初期ロード時のフラッシュを防ぐ
   if (!mounted) {
-    return <>{children}</>
+    return (
+      <ThemeContext.Provider value={defaultContext}>
+        {children}
+      </ThemeContext.Provider>
+    )
   }
 
   return (
@@ -82,7 +106,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function useTheme() {
   const context = useContext(ThemeContext)
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    console.error('useTheme must be used within a ThemeProvider')
+    // エラーの代わりにデフォルト値を返す（開発時のホットリロード対策）
+    return defaultContext
   }
   return context
 }

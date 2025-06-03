@@ -1,7 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
-import { UserProvider } from '../contexts/UserContext'
 import { useTheme } from '../contexts/ThemeContext'
 import EnhancedHeader from '../components/EnhancedHeader'
 import EnhancedSearchFilter from '../components/EnhancedSearchFilter'
@@ -75,7 +74,8 @@ const defaultFilters: FilterState = {
   paymentMethods: []
 }
 
-export default function Home() {
+// メインコンポーネント（ThemeProviderの内側で使用される）
+function HomeContent() {
   const { density } = useTheme()
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showAddShopModal, setShowAddShopModal] = useState(false)
@@ -275,116 +275,191 @@ export default function Home() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }, [])
 
+  // 現在地取得
+  const getCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      showToast('位置情報がサポートされていません', 'error')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setCurrentLocation([latitude, longitude])
+        showToast('現在地を取得しました', 'success')
+      },
+      (error) => {
+        console.error('位置情報取得エラー:', error)
+        showToast('位置情報の取得に失敗しました', 'error')
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000
+      }
+    )
+  }, [])
+
   // 初期化
   useEffect(() => {
     fetchShops()
-  }, [fetchShops, refreshTrigger])
+    getCurrentLocation()
+  }, [fetchShops, getCurrentLocation, refreshTrigger])
 
   return (
-    <UserProvider>
-      <div className="min-h-screen">
-        {/* ヘッダー */}
-        <EnhancedHeader onAddShop={() => setShowAddShopModal(true)} />
+    <div className="min-h-screen">
+      {/* ヘッダー */}
+      <EnhancedHeader onAddShop={() => setShowAddShopModal(true)} />
 
-        {/* 検索・フィルター */}
-        <EnhancedSearchFilter
-          filters={filters}
-          sortOption={sortOption}
-          {...stats}
-          onFiltersChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
-          onSortChange={setSortOption}
-        />
+      {/* 検索・フィルター */}
+      <EnhancedSearchFilter
+        filters={filters}
+        sortOption={sortOption}
+        {...stats}
+        onFiltersChange={(newFilters) => setFilters({ ...filters, ...newFilters })}
+        onSortChange={setSortOption}
+        onGetCurrentLocation={getCurrentLocation}
+        hasLocation={!!currentLocation}
+      />
 
-        {/* メインコンテンツ */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* ビューモード切り替え */}
-          <div className="flex justify-center mb-6">
-            <div className="glass-sm rounded-lg overflow-hidden inline-flex">
-              <button
-                onClick={() => setViewMode('map')}
-                className={`px-6 py-3 text-sm font-medium transition-all ${
-                  viewMode === 'map'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                🗺️ 地図表示
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-6 py-3 text-sm font-medium transition-all ${
-                  viewMode === 'list'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                📋 リスト表示
-              </button>
-            </div>
+      {/* メインコンテンツ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* ビューモード切り替え */}
+        <div className="flex justify-center mb-6">
+          <div className="glass-sm rounded-lg overflow-hidden inline-flex">
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-6 py-3 text-sm font-medium transition-all ${
+                viewMode === 'map'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              🗺️ 地図表示
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-6 py-3 text-sm font-medium transition-all ${
+                viewMode === 'list'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              📋 リスト表示
+            </button>
           </div>
-
-          {/* コンテンツ表示 */}
-          {viewMode === 'map' ? (
-            <Suspense fallback={<MapSkeleton />}>
-              <Map refreshTrigger={refreshTrigger} />
-            </Suspense>
-          ) : (
-            <div className={`grid gap-4 ${
-              density === 'compact' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                : 'grid-cols-1'
-            }`}>
-              {loading ? (
-                <LoadingSkeleton />
-              ) : filteredShops.length === 0 ? (
-                <div className="glass rounded-2xl p-12 text-center col-span-full">
-                  <div className="text-5xl mb-4">☕</div>
-                  <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-                    該当する店舗が見つかりません
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    フィルター条件を変更してみてください
-                  </p>
-                  <button
-                    onClick={() => setFilters(defaultFilters)}
-                    className="btn-glass bg-orange-500 text-white hover:bg-orange-600"
-                  >
-                    フィルターをリセット
-                  </button>
-                </div>
-              ) : (
-                filteredShops.map((shop, index) => (
-                  <div 
-                    key={shop.id}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <EnhancedShopCard
-                      shop={shop}
-                      onToggleFavorite={toggleFavorite}
-                      onShowDetails={showShopDetails}
-                      onShowReviews={showReviews}
-                      onNavigate={navigateToShop}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          )}
         </div>
 
-        {/* 店舗追加モーダル */}
-        <AddShopModal
-          isOpen={showAddShopModal}
-          onClose={() => setShowAddShopModal(false)}
-          onShopAdded={() => {
-            setRefreshTrigger(prev => prev + 1)
-            setShowAddShopModal(false)
-          }}
-        />
-
-        {/* トースト通知 */}
-        <ToastNotification />
+        {/* コンテンツ表示 */}
+        {viewMode === 'map' ? (
+          <Suspense fallback={<MapSkeleton />}>
+            <Map refreshTrigger={refreshTrigger} />
+          </Suspense>
+        ) : (
+          <div className={`grid gap-4 ${
+            density === 'compact' 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+              : 'grid-cols-1'
+          }`}>
+            {loading ? (
+              <LoadingSkeleton />
+            ) : filteredShops.length === 0 ? (
+              <div className="glass rounded-2xl p-12 text-center col-span-full">
+                <div className="text-5xl mb-4">☕</div>
+                <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                  該当する店舗が見つかりません
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  フィルター条件を変更してみてください
+                </p>
+                <button
+                  onClick={() => setFilters(defaultFilters)}
+                  className="btn-glass bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  フィルターをリセット
+                </button>
+              </div>
+            ) : (
+              filteredShops.map((shop, index) => (
+                <div 
+                  key={shop.id}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <EnhancedShopCard
+                    shop={shop}
+                    onToggleFavorite={toggleFavorite}
+                    onShowDetails={showShopDetails}
+                    onShowReviews={showReviews}
+                    onNavigate={navigateToShop}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
-    </UserProvider>
+
+      {/* 店舗追加モーダル */}
+      <AddShopModal
+        isOpen={showAddShopModal}
+        onClose={() => setShowAddShopModal(false)}
+        onShopAdded={() => {
+          setRefreshTrigger(prev => prev + 1)
+          setShowAddShopModal(false)
+        }}
+      />
+
+      {/* トースト通知 */}
+      <ToastNotification />
+    </div>
+  )
+}
+
+// エラーバウンダリコンポーネント
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">エラーが発生しました</h2>
+            <p className="text-gray-600 mb-4">{this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              ページを再読み込み
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+// デフォルトエクスポート（ThemeProviderでラップされる前）
+export default function Home() {
+  return (
+    <ErrorBoundary>
+      <HomeContent />
+    </ErrorBoundary>
   )
 }

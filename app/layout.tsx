@@ -1,34 +1,27 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { ThemeProvider } from '../contexts/ThemeContext'
+import ClientProviders from '../components/ClientProviders'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Coffee Map - コーヒー豆に出会う',
-  description: 'あなたの街のコーヒーショップを発見・共有しよう。最高の一杯を見つけるためのコーヒーマップ。',
-  keywords: 'コーヒー, カフェ, 自家焙煎, スペシャルティコーヒー, コーヒー豆',
+  description: 'コーヒー豆が購入できるお店を見つけるマップアプリ',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   openGraph: {
     title: 'Coffee Map - コーヒー豆に出会う',
-    description: 'あなたの街のコーヒーショップを発見・共有しよう',
-    type: 'website',
+    description: 'コーヒー豆が購入できるお店を見つけるマップアプリ',
+    url: '/',
+    siteName: 'Coffee Map',
     locale: 'ja_JP',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Coffee Map'
-      }
-    ]
+    type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Coffee Map - コーヒー豆に出会う',
-    description: 'あなたの街のコーヒーショップを発見・共有しよう',
-    images: ['/og-image.png']
-  }
+    description: 'コーヒー豆が購入できるお店を見つけるマップアプリ',
+  },
 }
 
 export default function RootLayout({
@@ -38,16 +31,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" suppressHydrationWarning>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <meta name="theme-color" content="#FF8C42" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      </head>
-      <body className={`${inter.className} gradient-bg min-h-screen`} suppressHydrationWarning>
-        <ThemeProvider>
+      <body className={inter.className} suppressHydrationWarning>
+        <ClientProviders>
           {children}
-        </ThemeProvider>
+        </ClientProviders>
       </body>
     </html>
   )
