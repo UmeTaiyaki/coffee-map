@@ -1,4 +1,4 @@
-// components/UserMenu.tsx - 完成イメージに合わせて改善
+// components/UserMenu.tsx - 完全版
 'use client'
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
@@ -311,42 +311,6 @@ export default function UserMenu() {
 
       {/* カスタムスタイル */}
       <style jsx>{`
-        .user-avatar-skeleton {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-
-        .user-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: linear-gradient(45deg, var(--accent-coffee), var(--accent-gold));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          border: none;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .user-avatar:hover {
-          transform: scale(1.1);
-          box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        }
-
-        .user-avatar:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-
         .user-menu-dropdown {
           position: absolute;
           right: 0;
@@ -514,15 +478,6 @@ export default function UserMenu() {
           line-height: 1.4;
         }
 
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
-        }
-
         @keyframes fade-in-up {
           from {
             opacity: 0;
@@ -567,21 +522,15 @@ export default function UserMenu() {
 
         /* アクセシビリティ */
         @media (prefers-reduced-motion: reduce) {
-          .user-avatar,
-          .user-menu-item {
-            transition: none;
-          }
-          
           .user-menu-dropdown {
             animation: none;
           }
         }
 
         /* フォーカス管理 */
-        .user-avatar:focus,
         .user-menu-item:focus {
           outline: 2px solid var(--accent-warm);
-          outline-offset: 2px;
+          outline-offset: -2px;
         }
       `}</style>
     </div>

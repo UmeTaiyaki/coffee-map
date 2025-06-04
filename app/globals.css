@@ -82,16 +82,18 @@ body {
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--glass-border);
   box-shadow: 0 4px 20px var(--glass-shadow);
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
   transition: all 0.3s ease;
+  height: 72px; /* 高さを固定 */
 }
 
 .header-content {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -183,6 +185,7 @@ body {
   background: var(--accent-warm);
   color: white;
   transform: scale(1.02);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .theme-toggle {
@@ -198,6 +201,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.25rem;
 }
 
 .theme-toggle:hover {
@@ -226,22 +230,84 @@ body {
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
 }
 
-/* 適応型検索・フィルターエリア */
+/* ユーザーアバタースケルトン */
+.user-avatar-skeleton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* フルスクリーンマップ対応 - ヘッダー分のスペースを確保 */
+.main-content {
+  height: calc(100vh - 72px); /* ヘッダーの高さを引く */
+  position: relative;
+  overflow: hidden;
+}
+
+/* マップコンテナをフルスクリーンに */
+.map-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  margin-bottom: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.map-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1));
+  position: relative;
+}
+
+.map-placeholder {
+  text-align: center;
+  color: var(--current-text-secondary);
+}
+
+.map-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+  animation: float 3s ease-in-out infinite;
+}
+
+/* 検索フィルターエリアをマップ上にオーバーレイ - z-indexを高く */
 .search-filter-area {
-  max-width: 1200px;
-  margin: 1.5rem auto;
-  padding: 0 1rem;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 800; /* z-indexを上げる */
+  max-width: none;
+  margin: 0;
+  pointer-events: none; /* 背景のクリックを可能に */
 }
 
 .search-container {
-  background: var(--glass-bg);
-  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.98); /* 不透明度を上げる */
+  backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1rem;
   box-shadow: 0 8px 24px var(--glass-shadow);
   transition: all 0.3s ease;
+  pointer-events: auto; /* 検索エリア内はクリック可能 */
+}
+
+.dark-mode .search-container {
+  background: rgba(26, 26, 26, 0.98); /* ダークモードも不透明度を上げる */
 }
 
 .search-bar {
@@ -266,6 +332,11 @@ body {
   border-color: var(--accent-warm);
   box-shadow: 0 0 0 4px rgba(255, 140, 66, 0.1);
   transform: translateY(-1px);
+  background: white;
+}
+
+.dark-mode .search-input:focus {
+  background: var(--dark-secondary-bg);
 }
 
 .search-icon {
@@ -306,6 +377,15 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.filter-label > span:first-child {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .filter-select {
@@ -363,6 +443,25 @@ body {
   left: 100%;
 }
 
+.quick-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.5s, height 0.5s;
+}
+
+.quick-btn:active::after {
+  width: 200px;
+  height: 200px;
+  animation: ripple 0.5s ease-out;
+}
+
 .quick-btn:hover,
 .quick-btn.active {
   background: var(--accent-warm);
@@ -371,10 +470,21 @@ body {
   box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
 }
 
+.quick-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.quick-btn.disabled:hover {
+  transform: none;
+  background: var(--current-secondary-bg);
+  color: var(--current-text-primary);
+}
+
 /* 統計ダッシュボード */
 .stats-dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   background: var(--current-secondary-bg);
   border: 1px solid var(--current-border);
@@ -390,12 +500,31 @@ body {
   border-radius: 8px;
   transition: all 0.3s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+  transform: rotate(45deg);
+  transition: all 0.5s ease;
+  opacity: 0;
 }
 
 .stat-card:hover {
   transform: scale(1.05);
   background: var(--accent-warm);
   color: white;
+}
+
+.stat-card:hover::before {
+  animation: shine 0.5s ease;
 }
 
 .stat-number {
@@ -415,344 +544,45 @@ body {
   font-weight: 500;
 }
 
-/* メインコンテンツエリア */
-.main-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem 2rem;
-}
-
-/* 地図エリア（グラスモーフィズム） */
-.map-container {
-  height: 500px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  overflow: hidden;
-  position: relative;
-  margin-bottom: 2rem;
-  box-shadow: 0 12px 40px var(--glass-shadow);
-  transition: all 0.3s ease;
-}
-
-.map-container:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 60px var(--glass-shadow);
-}
-
-.map-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1));
-  position: relative;
-}
-
-.map-placeholder {
-  text-align: center;
-  color: var(--current-text-secondary);
-}
-
-.map-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-  animation: float 3s ease-in-out infinite;
-}
-
-/* 店舗リスト（密度調整可能） */
-.shop-list {
-  display: grid;
-  gap: 1.5rem;
-}
-
-/* 簡潔モード */
-.density-compact .shop-list {
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-}
-
-/* 詳細モード */
-.density-detailed .shop-list {
-  grid-template-columns: 1fr;
-}
-
-.shop-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(15px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.4s ease;
-  box-shadow: 0 4px 20px var(--glass-shadow);
-  position: relative;
-}
-
-.shop-card::before {
-  content: '';
+/* 検索フィルターエリアの展開/折りたたみボタン */
+.filter-toggle-btn {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--accent-coffee), var(--accent-warm), var(--accent-gold));
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-}
-
-.shop-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 40px var(--glass-shadow);
-}
-
-.shop-card:hover::before {
-  transform: scaleX(1);
-}
-
-.shop-header {
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.shop-image {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  background: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.shop-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.shop-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--current-text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.shop-category {
-  font-size: 0.9rem;
-  color: var(--current-text-secondary);
-  margin-bottom: 0.75rem;
-}
-
-.shop-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.rating-display {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--current-tertiary-bg);
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  border: 1px solid var(--current-border);
-}
-
-.stars {
-  color: var(--accent-gold);
-  font-size: 0.9rem;
-}
-
-.rating-number {
-  font-weight: 600;
-  color: var(--accent-gold);
-  font-size: 0.9rem;
-}
-
-.review-count {
-  font-size: 0.75rem;
-  color: var(--current-text-muted);
-}
-
-.status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid;
-}
-
-.status-open {
-  background: rgba(34, 139, 34, 0.1);
-  color: var(--accent-green);
-  border-color: rgba(34, 139, 34, 0.2);
-}
-
-.status-closed {
-  background: rgba(229, 62, 62, 0.1);
-  color: var(--accent-red);
-  border-color: rgba(229, 62, 62, 0.2);
-}
-
-.distance-info {
-  color: var(--current-text-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-/* 詳細情報（密度に応じて表示/非表示） */
-.shop-details {
-  padding: 0 1.5rem 1.5rem;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.density-detailed .shop-details {
-  opacity: 1;
-  max-height: 1000px;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background: var(--current-tertiary-bg);
-  border-radius: 12px;
-  border: 1px solid var(--current-border);
-}
-
-.detail-item {
-  text-align: center;
-  padding: 0.5rem;
-}
-
-.detail-label {
-  font-size: 0.7rem;
-  color: var(--current-text-muted);
-  margin-bottom: 0.25rem;
-}
-
-.detail-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--current-text-primary);
-}
-
-.features-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.feature-tag {
-  padding: 0.25rem 0.75rem;
-  background: var(--current-secondary-bg);
-  border: 1px solid var(--current-border);
-  border-radius: 12px;
-  font-size: 0.75rem;
-  color: var(--current-text-secondary);
-  transition: all 0.2s ease;
-}
-
-.feature-tag.highlight {
-  background: var(--accent-green);
-  color: white;
-  border-color: var(--accent-green);
-}
-
-/* 日本的おもてなしメッセージ */
-.courtesy-message {
-  background: linear-gradient(45deg, rgba(111, 78, 55, 0.05), rgba(255, 140, 66, 0.05));
-  border: 1px solid var(--current-border);
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-  color: var(--current-text-secondary);
-  text-align: center;
-  line-height: 1.5;
-}
-
-.courtesy-highlight {
-  color: var(--accent-coffee);
-  font-weight: 600;
-}
-
-/* アクションボタン */
-.shop-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.75rem;
-  padding: 1.5rem;
-  border-top: 1px solid var(--current-border);
-  background: var(--current-tertiary-bg);
-}
-
-.action-btn {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--current-border);
-  border-radius: 8px;
-  background: var(--current-secondary-bg);
-  color: var(--current-text-primary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.action-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.action-btn:hover::before {
-  left: 100%;
-}
-
-.action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.btn-primary {
+  top: 1rem;
+  right: 1rem;
+  z-index: 810;
   background: var(--accent-warm);
   color: white;
-  border-color: var(--accent-warm);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+  transition: all 0.3s ease;
 }
 
-.btn-secondary {
+.filter-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(255, 140, 66, 0.4);
+}
+
+/* フィルターエリアの折りたたみ状態 */
+.search-filter-area.collapsed .search-container {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-filter-area.collapsed .filter-toggle-btn {
   background: var(--accent-coffee);
-  color: white;
-  border-color: var(--accent-coffee);
 }
 
-.btn-tertiary {
-  background: var(--accent-green);
-  color: white;
-  border-color: var(--accent-green);
+/* 店舗リストの削除（マップビューのみ） */
+.shop-list {
+  display: none;
 }
 
 /* コーヒーボタン共通スタイル */
@@ -775,6 +605,93 @@ body {
 .coffee-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(255, 140, 66, 0.4);
+}
+
+/* Leafletのz-index調整 */
+.leaflet-container {
+  z-index: 1;
+}
+
+.leaflet-control-container {
+  z-index: 400;
+}
+
+.leaflet-popup-pane {
+  z-index: 700;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 800;
+}
+
+/* サイドパネルのz-index調整 */
+.shop-side-panel {
+  z-index: 900;
+}
+
+/* モーダルのz-index調整 */
+.modal-overlay {
+  z-index: 1100;
+}
+
+.modal-content {
+  z-index: 1200;
+}
+
+/* トースト通知のz-index調整 */
+.toast-container {
+  z-index: 1300;
+}
+
+/* Leaflet カスタマイズ */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 20px var(--glass-shadow);
+  border-radius: 12px;
+}
+
+.leaflet-popup-tip {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+.custom-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  overflow: hidden;
+}
+
+.custom-popup .leaflet-popup-content {
+  width: 350px !important;
+}
+
+/* 店舗マーカーのz-index調整 */
+.custom-marker {
+  animation: marker-appear 0.5s ease-out;
+  transition: all 0.3s ease !important;
+  z-index: 600 !important;
+}
+
+.custom-marker:hover {
+  transform: scale(1.2) !important;
+  z-index: 650 !important;
+  filter: brightness(1.2) drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+
+/* 現在地マーカー */
+.current-location-marker {
+  animation: pulse-location 2s infinite;
+  z-index: 700 !important;
 }
 
 /* アニメーション */
@@ -811,6 +728,40 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
 /* カスタムスクロールバー */
 ::-webkit-scrollbar {
   width: 8px;
@@ -831,8 +782,16 @@ body {
   background: var(--accent-coffee);
 }
 
-/* レスポンシブ対応 */
+/* モバイル対応の改善 */
 @media (max-width: 768px) {
+  .header {
+    height: 60px;
+  }
+  
+  .main-content {
+    height: calc(100vh - 60px);
+  }
+  
   .header-content {
     flex-direction: column;
     align-items: stretch;
@@ -843,35 +802,59 @@ body {
     justify-content: center;
   }
   
+  .brand-text p {
+    display: none;
+  }
+  
   .user-section {
     justify-content: space-between;
+  }
+  
+  .greeting-text {
+    display: none;
   }
   
   .filter-section {
     grid-template-columns: 1fr;
   }
   
+  .search-filter-area {
+    top: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+  }
+  
+  .search-container {
+    padding: 1rem;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+  
+  /* モバイルでは統計ダッシュボードを簡略化 */
+  .stats-dashboard {
+    display: none;
+  }
+  
+  /* クイックアクションボタンを2列に */
   .quick-actions {
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
   }
   
-  .shop-header {
-    padding: 1rem;
+  .quick-btn {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .coffee-button span:not(:first-child) {
+    display: none;
   }
   
-  .shop-image {
-    width: 60px;
-    height: 60px;
-    font-size: 1.5rem;
-  }
-  
-  .shop-actions {
-    grid-template-columns: 1fr 1fr;
-    padding: 1rem;
-  }
-  
-  .map-container {
-    height: 400px;
+  .coffee-button {
+    padding: 0.75rem;
   }
 }
 
@@ -904,58 +887,11 @@ select:focus {
   outline-offset: 2px;
 }
 
-/* Leaflet カスタマイズ */
-.leaflet-container {
-  font-family: inherit;
-}
-
-.leaflet-popup-content-wrapper {
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 4px 20px var(--glass-shadow);
-  border-radius: 12px;
-}
-
-.leaflet-popup-tip {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-}
-
-.custom-marker {
-  transition: all 0.3s ease !important;
-}
-
-.custom-marker:hover {
-  transform: scale(1.2) !important;
-  z-index: 9999 !important;
-}
-
-/* ローディング状態 */
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
 /* 印刷対応 */
 @media print {
   .header,
   .search-filter-area,
   .shop-actions {
     display: none !important;
-  }
-  
-  .shop-card {
-    page-break-inside: avoid;
   }
 }

@@ -1,4 +1,4 @@
-// components/Map.tsx - ビルドエラー修正版
+// components/Map.tsx - 完全版
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
@@ -161,35 +161,7 @@ const defaultSort: SortState = {
   direction: 'asc'
 }
 
-// マップビュー変更コンポーネント（hooks問題を完全に解決）
-function ChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
-  // Dynamic importを使ってuseMapを取得
-  const [map, setMap] = useState<any>(null)
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      import('react-leaflet').then((mod) => {
-        try {
-          const mapInstance = mod.useMap()
-          setMap(mapInstance)
-        } catch (err) {
-          // useMapが使用できない場合は無視
-          console.warn('useMap hook not available:', err)
-        }
-      })
-    }
-  }, [])
-  
-  useEffect(() => {
-    if (map && map.setView) {
-      map.setView(center, zoom)
-    }
-  }, [center, zoom, map])
-  
-  return null
-}
-
-// 簡易マップビューコンポーネント（代替案）
+// 簡易マップビューコンポーネント
 function SimpleChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
   useEffect(() => {
     // MapContainerが存在する場合のみ実行
@@ -251,6 +223,7 @@ function FilterTag({
 }
 
 // 統合サイドバーコンポーネント
+// IntegratedSidebar コンポーネントを以下に置き換え
 function IntegratedSidebar({
   filters,
   sortState,
@@ -280,8 +253,18 @@ function IntegratedSidebar({
   onRefresh: () => void
   onFiltersClear: () => void
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
   return (
-    <div className="search-filter-area">
+    <div className={`search-filter-area ${isCollapsed ? 'collapsed' : ''}`}>
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="filter-toggle-btn"
+        title={isCollapsed ? 'フィルターを表示' : 'フィルターを隠す'}
+      >
+        {isCollapsed ? '🔍' : '✕'}
+      </button>
+
       <div className="search-container">
         {/* 検索バー */}
         <div className="search-bar">
@@ -298,7 +281,9 @@ function IntegratedSidebar({
         {/* フィルターセクション */}
         <div className="filter-section">
           <div className="filter-group">
-            <div className="filter-label">📂 カテゴリー</div>
+            <div className="filter-label">
+              <span>📂</span> カテゴリー
+            </div>
             <select
               className="filter-select"
               value={filters.category}
@@ -312,21 +297,26 @@ function IntegratedSidebar({
           </div>
 
           <div className="filter-group">
-            <div className="filter-label">💰 価格帯</div>
+            <div className="filter-label">
+              <span>💰</span> 価格帯
+            </div>
             <select
               className="filter-select"
               value={filters.priceRange}
               onChange={(e) => onFiltersChange({ priceRange: e.target.value as FilterState['priceRange'] })}
             >
               <option value="all">すべての価格帯</option>
-              {Object.entries(PRICE_RANGES).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
+              <option value="1">¥ (～500円)</option>
+              <option value="2">¥¥ (500～1000円)</option>
+              <option value="3">¥¥¥ (1000～2000円)</option>
+              <option value="4">¥¥¥¥ (2000円～)</option>
             </select>
           </div>
 
           <div className="filter-group">
-            <div className="filter-label">📍 距離</div>
+            <div className="filter-label">
+              <span>📍</span> 距離
+            </div>
             <select
               className="filter-select"
               value={filters.distance.enabled ? filters.distance.maxKm : 'all'}
@@ -348,7 +338,9 @@ function IntegratedSidebar({
           </div>
 
           <div className="filter-group">
-            <div className="filter-label">📊 並び順</div>
+            <div className="filter-label">
+              <span>📊</span> 並び順
+            </div>
             <select
               className="filter-select"
               value={sortState.option}
@@ -443,8 +435,8 @@ function IntegratedSidebar({
           </button>
         </div>
 
-        {/* 統計ダッシュボード */}
-        <div className="stats-dashboard">
+        {/* 統計ダッシュボード - デスクトップのみ表示 */}
+        <div className="stats-dashboard hidden md:grid">
           <div className="stat-card">
             <div className="stat-number">{filteredCount}</div>
             <div className="stat-label">該当店舗</div>
@@ -452,6 +444,10 @@ function IntegratedSidebar({
           <div className="stat-card">
             <div className="stat-number">{openCount}</div>
             <div className="stat-label">営業中</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-number">{totalCount > 0 ? (favoriteCount / totalCount * 100).toFixed(0) : 0}%</div>
+            <div className="stat-label">お気に入り率</div>
           </div>
           <div className="stat-card">
             <div className="stat-number">{favoriteCount}</div>
@@ -687,9 +683,15 @@ export default function Map({ refreshTrigger }: MapProps) {
       if (filters.distance.enabled && currentLocation && 
           (shop.distance === undefined || shop.distance > filters.distance.maxKm)) return false
 
+      // 最低評価
+      if (filters.minRating > 0) {
+        const avgRating = calculateAverageRating(shop.reviews)
+        if (avgRating < filters.minRating) return false
+      }
+
       return true
     })
-  }, [favorites, isOpenNow, currentLocation])
+  }, [favorites, isOpenNow, currentLocation, calculateAverageRating])
 
   // フィルター・ソート処理
   const processedShops = useMemo(() => {
@@ -817,12 +819,7 @@ export default function Map({ refreshTrigger }: MapProps) {
         style={{ 
           height: '100%', 
           width: '100%',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1
+          position: 'relative'
         }}
         zoomControl={true}
       >
