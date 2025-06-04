@@ -1,4 +1,4 @@
-// app/page.tsx - 完全版（レイアウト調整版）
+// app/page.tsx - 完全版（サインインボタン削除版）
 'use client'
 import React, { useState, useEffect, Suspense, useCallback } from 'react'
 import dynamic from 'next/dynamic'
@@ -287,21 +287,14 @@ export default function Home() {
           </div>
           
           <div className="user-section">
-            {/* ユーザー挨拶 */}
-            {user ? (
+            {/* ユーザー挨拶 - サインインボタンを削除 */}
+            {user && (
               <div className="greeting-text">
                 <div className="user-name">
                   {user.nickname || 'Coffee Lover'}さん、{getGreeting()}！
                 </div>
                 <div>今日も素敵なコーヒータイムを {getTimeEmoji()}</div>
               </div>
-            ) : (
-              <button
-                onClick={openAuthModal}
-                className="coffee-button"
-              >
-                サインイン
-              </button>
             )}
             
             <div className="controls-section">
