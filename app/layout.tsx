@@ -1,8 +1,6 @@
-// app/layout.tsx - 高さ管理を追加
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import './animations.css'
 import ClientProviders from '@/components/ClientProviders'
 
 const inter = Inter({ 
@@ -12,11 +10,33 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Coffee Map - コーヒー豆に出会う',
-  description: '最高のコーヒー体験を見つけよう。コーヒー豆が購入できるお店のマップアプリ。',
-  keywords: 'コーヒー,カフェ,珈琲,豆,焙煎,マップ,地図',
+  description: '最高の一杯を発見する、コーヒーショップマップ',
+  keywords: 'コーヒー,カフェ,焙煎所,コーヒーショップ,地図,マップ',
   authors: [{ name: 'Coffee Map Team' }],
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#FF8C42',
+  openGraph: {
+    title: 'Coffee Map - コーヒー豆に出会う',
+    description: '最高の一杯を発見する、コーヒーショップマップ',
+    type: 'website',
+    locale: 'ja_JP',
+    url: 'https://coffee-map.vercel.app',
+    siteName: 'Coffee Map',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Coffee Map',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Coffee Map - コーヒー豆に出会う',
+    description: '最高の一杯を発見する、コーヒーショップマップ',
+    images: ['/og-image.png'],
+  },
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+  themeColor: '#6F4E37',
 }
 
 export default function RootLayout({
@@ -25,20 +45,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja" className={inter.variable} style={{ height: '100%' }}>
+    <html lang="ja" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossOrigin=""
-        />
-        <script
-          src="https://cdn.geolonia.com/community-geocoder.js"
-          async
-        />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body style={{ height: '100%', margin: 0 }}>
+      <body className={inter.className} suppressHydrationWarning>
         <ClientProviders>
           {children}
         </ClientProviders>
