@@ -1,4 +1,4 @@
-// components/AddShopModal.tsx - UI改善版
+// components/AddShopModal.tsx - 完全版（見切れ修正）
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
@@ -371,6 +371,8 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
         onShopAdded()
       }
 
+      onClose()
+
     } catch (error) {
       console.error('登録エラー:', error)
       const errorMessage = error instanceof Error ? error.message : '店舗の登録に失敗しました'
@@ -442,10 +444,10 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
   const isFormDisabled = !user || isSubmitting
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '900px', padding: '0' }}>
         {/* ヘッダー */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="modal-header">
           <div>
             <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
               🏪 新しい店舗を追加
@@ -480,7 +482,7 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
         </div>
 
         {/* コンテンツ */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="modal-body">
           {/* 認証案内 */}
           {!user && (
             <div className="m-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -680,38 +682,36 @@ export default function AddShopModal({ isOpen, onClose, onShopAdded }: AddShopMo
               />
               <p className="text-xs text-gray-500 mt-1">{formData.description.length}/500文字</p>
             </FormSection>
-
-            {/* フッター・送信ボタン */}
-            <div className="border-t pt-6">
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={isSubmitting}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  キャンセル
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition}
-                  className={`flex-1 px-6 py-3 rounded-lg transition-all font-medium ${
-                    isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition
-                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {!user ? '👤 サインインが必要です' : 
-                   isSubmitting ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      登録中...
-                    </div>
-                  ) : !markerPosition ? '🗺️ まず地図で位置を確認してください' : '🏪 店舗を登録'}
-                </button>
-              </div>
-            </div>
           </form>
+        </div>
+
+        {/* フッター・送信ボタン */}
+        <div className="modal-footer">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            キャンセル
+          </button>
+          <button 
+            onClick={handleSubmit}
+            disabled={isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition}
+            className={`flex-1 px-6 py-3 rounded-lg transition-all font-medium ${
+              isFormDisabled || !formData.name.trim() || !formData.address.trim() || !markerPosition
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {!user ? '👤 サインインが必要です' : 
+             isSubmitting ? (
+              <div className="flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                登録中...
+              </div>
+            ) : !markerPosition ? '🗺️ まず地図で位置を確認してください' : '🏪 店舗を登録'}
+          </button>
         </div>
       </div>
     </div>

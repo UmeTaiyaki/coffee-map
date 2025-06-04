@@ -70,16 +70,11 @@ export default function AuthModal({
 
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ 
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)'
-      }}
+      className="modal-overlay"
       onClick={handleBackdropClick}
     >
       <div 
-        className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl transform transition-all relative"
-        style={{ zIndex: 10000 }}
+        className="modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー */}
@@ -139,57 +134,6 @@ export default function AuthModal({
           </div>
         </div>
       </div>
-
-      {/* CSS-in-JS でアニメーション定義 */}
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-        
-        /* アクセシビリティ向上 */
-        .focus\\:ring-2:focus {
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-        }
-        
-        .focus\\:ring-gray-500:focus {
-          box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.5);
-        }
-        
-        /* モバイル対応 */
-        @media (max-width: 640px) {
-          .max-w-md {
-            max-width: calc(100vw - 2rem);
-            margin: 1rem;
-          }
-        }
-        
-        /* ハイコントラストモード対応 */
-        @media (prefers-contrast: high) {
-          .border-gray-300 {
-            border-color: #000;
-          }
-          
-          .text-gray-500 {
-            color: #000;
-          }
-        }
-        
-        /* 動きを減らす設定への対応 */
-        @media (prefers-reduced-motion: reduce) {
-          .transition-all,
-          .transition-colors {
-            transition: none;
-          }
-          
-          .animate-spin {
-            animation: none;
-          }
-        }
-      `}</style>
     </div>
   )
 }
