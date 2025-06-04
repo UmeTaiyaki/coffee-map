@@ -1,9 +1,9 @@
-/* app/globals.css - 完全版 */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* app/globals.css - マップサイズ調整版（主要部分のみ） */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
-/* CSS Variables */
+/* CSS変数定義 */
 :root {
   /* ライトモード（日本文化対応） */
   --light-primary-bg: #F8F5F0;
@@ -59,41 +59,50 @@
   --glass-border: rgba(255, 255, 255, 0.1);
 }
 
-/* グローバルスタイル */
+/* リセット＆ベース */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
 body {
-  font-family: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', 'メイリオ', Meiryo, 'MS Pゴシック', sans-serif;
+  font-family: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', 'メイリオ', Meiryo, 'MS Pゴシック', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--current-primary-bg);
   color: var(--current-text-primary);
   line-height: 1.6;
   transition: all 0.3s ease;
-  min-height: 100vh;
 }
 
-/* アプリコンテナ */
+/* アプリコンテナ - フルスクリーンレイアウト */
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: linear-gradient(135deg, var(--current-primary-bg) 0%, var(--current-tertiary-bg) 100%);
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-/* モダンなヘッダー（グラスモーフィズム） */
+/* モダンなヘッダー（グラスモーフィズム + 日本的丁寧さ） */
 .header {
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--glass-border);
   box-shadow: 0 4px 20px var(--glass-shadow);
-  padding: 0.75rem 1rem;
-  position: sticky;
-  top: 0;
+  padding: 1rem;
   z-index: 1000;
   transition: all 0.3s ease;
-  height: 72px; /* 高さを固定 */
+  flex-shrink: 0;
 }
 
 .header-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -101,7 +110,6 @@ body {
   gap: 1rem;
 }
 
-/* ブランドセクション */
 .brand-section {
   display: flex;
   align-items: center;
@@ -135,7 +143,6 @@ body {
   font-weight: 300;
 }
 
-/* ユーザーセクション */
 .user-section {
   display: flex;
   align-items: center;
@@ -185,7 +192,6 @@ body {
   background: var(--accent-warm);
   color: white;
   transform: scale(1.02);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .theme-toggle {
@@ -201,7 +207,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
 }
 
 .theme-toggle:hover {
@@ -230,7 +235,6 @@ body {
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
 }
 
-/* ユーザーアバタースケルトン */
 .user-avatar-skeleton {
   width: 40px;
   height: 40px;
@@ -240,74 +244,33 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-/* フルスクリーンマップ対応 - ヘッダー分のスペースを確保 */
+/* メインコンテンツ - 2カラムレイアウト */
 .main-content {
-  height: calc(100vh - 72px); /* ヘッダーの高さを引く */
-  position: relative;
-  overflow: hidden;
-}
-
-/* マップコンテナをフルスクリーンに */
-.map-container {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  margin-bottom: 0;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.map-content {
-  width: 100%;
-  height: 100%;
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1));
-  position: relative;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1.5rem;
+  gap: 1.5rem;
 }
 
-.map-placeholder {
-  text-align: center;
-  color: var(--current-text-secondary);
-}
-
-.map-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-  animation: float 3s ease-in-out infinite;
-}
-
-/* 検索フィルターエリアをマップ上にオーバーレイ - z-indexを高く */
+/* 検索・フィルターエリア - 上部固定 */
 .search-filter-area {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  right: 1rem;
-  z-index: 800; /* z-indexを上げる */
-  max-width: none;
-  margin: 0;
-  pointer-events: none; /* 背景のクリックを可能に */
+  flex-shrink: 0;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  transition: all 0.3s ease;
 }
 
 .search-container {
-  background: rgba(255, 255, 255, 0.98); /* 不透明度を上げる */
-  backdrop-filter: blur(20px) saturate(180%);
+  background: var(--glass-bg);
+  backdrop-filter: blur(15px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 1.5rem;
-  margin-bottom: 1rem;
   box-shadow: 0 8px 24px var(--glass-shadow);
   transition: all 0.3s ease;
-  pointer-events: auto; /* 検索エリア内はクリック可能 */
-}
-
-.dark-mode .search-container {
-  background: rgba(26, 26, 26, 0.98); /* ダークモードも不透明度を上げる */
 }
 
 .search-bar {
@@ -332,11 +295,6 @@ body {
   border-color: var(--accent-warm);
   box-shadow: 0 0 0 4px rgba(255, 140, 66, 0.1);
   transform: translateY(-1px);
-  background: white;
-}
-
-.dark-mode .search-input:focus {
-  background: var(--dark-secondary-bg);
 }
 
 .search-icon {
@@ -377,15 +335,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  position: relative;
-  padding-left: 1.5rem;
-}
-
-.filter-label > span:first-child {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 .filter-select {
@@ -443,25 +392,6 @@ body {
   left: 100%;
 }
 
-.quick-btn::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  transform: translate(-50%, -50%);
-  transition: width 0.5s, height 0.5s;
-}
-
-.quick-btn:active::after {
-  width: 200px;
-  height: 200px;
-  animation: ripple 0.5s ease-out;
-}
-
 .quick-btn:hover,
 .quick-btn.active {
   background: var(--accent-warm);
@@ -470,21 +400,16 @@ body {
   box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
 }
 
+.quick-btn:disabled,
 .quick-btn.disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.quick-btn.disabled:hover {
-  transform: none;
-  background: var(--current-secondary-bg);
-  color: var(--current-text-primary);
-}
-
 /* 統計ダッシュボード */
 .stats-dashboard {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 1rem;
   background: var(--current-secondary-bg);
   border: 1px solid var(--current-border);
@@ -500,31 +425,12 @@ body {
   border-radius: 8px;
   transition: all 0.3s ease;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-  transform: rotate(45deg);
-  transition: all 0.5s ease;
-  opacity: 0;
 }
 
 .stat-card:hover {
   transform: scale(1.05);
   background: var(--accent-warm);
   color: white;
-}
-
-.stat-card:hover::before {
-  animation: shine 0.5s ease;
 }
 
 .stat-number {
@@ -544,116 +450,48 @@ body {
   font-weight: 500;
 }
 
-/* 検索フィルターエリアの展開/折りたたみボタン */
-.filter-toggle-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  z-index: 810;
-  background: var(--accent-warm);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+/* 地図コンテナ - 下部に配置、サイズ縮小 */
+.map-container {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 500px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 12px 40px var(--glass-shadow);
   transition: all 0.3s ease;
 }
 
-.filter-toggle-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(255, 140, 66, 0.4);
-}
-
-/* フィルターエリアの折りたたみ状態 */
-.search-filter-area.collapsed .search-container {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.search-filter-area.collapsed .filter-toggle-btn {
-  background: var(--accent-coffee);
-}
-
-/* 店舗リストの削除（マップビューのみ） */
-.shop-list {
-  display: none;
-}
-
-/* コーヒーボタン共通スタイル */
-.coffee-button {
-  padding: 0.75rem 1rem;
-  background: linear-gradient(45deg, var(--accent-coffee), var(--accent-warm));
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 2px 8px rgba(255, 140, 66, 0.3);
-}
-
-.coffee-button:hover {
+.map-container:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(255, 140, 66, 0.4);
-}
-
-/* Leafletのz-index調整 */
-.leaflet-container {
-  z-index: 1;
-}
-
-.leaflet-control-container {
-  z-index: 400;
-}
-
-.leaflet-popup-pane {
-  z-index: 700;
-}
-
-.leaflet-tooltip-pane {
-  z-index: 800;
-}
-
-/* サイドパネルのz-index調整 */
-.shop-side-panel {
-  z-index: 900;
-}
-
-/* モーダルのz-index調整 */
-.modal-overlay {
-  z-index: 1100;
-}
-
-.modal-content {
-  z-index: 1200;
-}
-
-/* トースト通知のz-index調整 */
-.toast-container {
-  z-index: 1300;
+  box-shadow: 0 20px 60px var(--glass-shadow);
 }
 
 /* Leaflet カスタマイズ */
 .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--current-tertiary-bg);
   font-family: inherit;
+  border-radius: 20px;
 }
 
 .leaflet-popup-content-wrapper {
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 4px 20px var(--glass-shadow);
   border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  color: var(--current-text-primary);
 }
 
 .leaflet-popup-tip {
@@ -661,37 +499,92 @@ body {
   border: 1px solid var(--glass-border);
 }
 
-.leaflet-popup-content {
-  margin: 0;
-  padding: 0;
-}
-
-.custom-popup .leaflet-popup-content-wrapper {
-  padding: 0;
-  overflow: hidden;
-}
-
-.custom-popup .leaflet-popup-content {
-  width: 350px !important;
-}
-
-/* 店舗マーカーのz-index調整 */
+/* カスタムマーカー */
 .custom-marker {
-  animation: marker-appear 0.5s ease-out;
   transition: all 0.3s ease !important;
-  z-index: 600 !important;
 }
 
 .custom-marker:hover {
   transform: scale(1.2) !important;
-  z-index: 650 !important;
-  filter: brightness(1.2) drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+  z-index: 1000 !important;
 }
 
 /* 現在地マーカー */
 .current-location-marker {
-  animation: pulse-location 2s infinite;
-  z-index: 700 !important;
+  z-index: 999 !important;
+}
+
+/* マップコントロールの位置調整 */
+.leaflet-control-container .leaflet-top.leaflet-left {
+  top: 1rem;
+  left: 1rem;
+}
+
+.leaflet-control-zoom {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a {
+  background: transparent;
+  color: var(--current-text-primary);
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--accent-warm);
+  color: white;
+}
+
+/* ボタン共通スタイル */
+.coffee-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--current-border);
+  border-radius: 12px;
+  background: var(--current-secondary-bg);
+  color: var(--current-text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.coffee-button:hover {
+  background: var(--accent-warm);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+}
+
+/* 地図プレースホルダー */
+.map-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(45deg, rgba(111, 78, 55, 0.1), rgba(255, 140, 66, 0.1));
+  position: relative;
+}
+
+.map-placeholder {
+  text-align: center;
+  color: var(--current-text-secondary);
+}
+
+.map-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+  animation: float 3s ease-in-out infinite;
 }
 
 /* アニメーション */
@@ -705,15 +598,9 @@ body {
   50% { transform: translateY(-10px); }
 }
 
-@keyframes marker-appear {
-  from {
-    opacity: 0;
-    transform: scale(0) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @keyframes pulse-location {
@@ -728,70 +615,14 @@ body {
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
+/* レスポンシブ対応 */
+@media (max-width: 1024px) {
+  .map-container {
+    height: 400px;
   }
 }
 
-@keyframes shine {
-  0% {
-    transform: translateX(-100%) translateY(-100%) rotate(45deg);
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(100%) translateY(100%) rotate(45deg);
-    opacity: 0;
-  }
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
-/* カスタムスクロールバー */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--current-tertiary-bg);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--accent-warm);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-coffee);
-}
-
-/* モバイル対応の改善 */
 @media (max-width: 768px) {
-  .header {
-    height: 60px;
-  }
-  
-  .main-content {
-    height: calc(100vh - 60px);
-  }
-  
   .header-content {
     flex-direction: column;
     align-items: stretch;
@@ -802,59 +633,43 @@ body {
     justify-content: center;
   }
   
-  .brand-text p {
-    display: none;
-  }
-  
   .user-section {
     justify-content: space-between;
-  }
-  
-  .greeting-text {
-    display: none;
   }
   
   .filter-section {
     grid-template-columns: 1fr;
   }
   
-  .search-filter-area {
-    top: 0.5rem;
-    left: 0.5rem;
-    right: 0.5rem;
-  }
-  
-  .search-container {
-    padding: 1rem;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-  }
-  
-  /* モバイルでは統計ダッシュボードを簡略化 */
-  .stats-dashboard {
-    display: none;
-  }
-  
-  /* クイックアクションボタンを2列に */
   .quick-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    justify-content: center;
   }
   
-  .quick-btn {
-    font-size: 0.75rem;
-    padding: 0.5rem 0.75rem;
+  .main-content {
+    padding: 1rem;
+    gap: 1rem;
   }
-}
-
-@media (max-width: 640px) {
+  
+  .map-container {
+    height: 350px;
+  }
+  
+  .mode-controls {
+    order: 1;
+  }
+  
   .coffee-button span:not(:first-child) {
     display: none;
   }
+}
+
+@media (max-width: 480px) {
+  .map-container {
+    height: 300px;
+  }
   
-  .coffee-button {
-    padding: 0.75rem;
+  .stats-dashboard {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -887,11 +702,94 @@ select:focus {
   outline-offset: 2px;
 }
 
-/* 印刷対応 */
-@media print {
-  .header,
-  .search-filter-area,
-  .shop-actions {
-    display: none !important;
-  }
+/* モーダル・オーバーレイ共通 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
+
+.modal-content {
+  background: var(--current-secondary-bg);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* カスタムトースト */
+.toast {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  background: var(--current-secondary-bg);
+  color: var(--current-text-primary);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--current-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 10000;
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  transform: translateX(400px);
+  transition: all 0.3s ease;
+}
+
+/* ダークモード追加調整 */
+.dark-mode .leaflet-container {
+  background: #1a1a1a;
+}
+
+.dark-mode .leaflet-tile {
+  filter: brightness(0.6) contrast(1.2);
+}
+
+/* アプリケーション全体の高さ管理 */
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#__next {
+  height: 100%;
+}
+
+/* Next.js用の追加調整 */
+.app-container > * {
+  min-height: 0;
+}
+
+/* スクロールバーのカスタマイズ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--current-tertiary-bg);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-warm);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-coffee);
+} 

@@ -1,4 +1,4 @@
-// components/Map.tsx - 完全版
+// components/Map.tsx - 完全版（レイアウト調整版）
 'use client'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
@@ -140,27 +140,6 @@ const createIcons = async () => {
   }
 }
 
-// デフォルト値
-const defaultFilters: FilterState = {
-  search: '',
-  category: 'all',
-  priceRange: 'all',
-  features: [],
-  showFavoritesOnly: false,
-  isOpenNow: false,
-  openAt: { enabled: false, day: 0, time: '09:00' },
-  hasReviews: false,
-  minRating: 0,
-  distance: { enabled: false, maxKm: 5 },
-  tags: [],
-  paymentMethods: []
-}
-
-const defaultSort: SortState = {
-  option: 'distance',
-  direction: 'asc'
-}
-
 // 簡易マップビューコンポーネント
 function SimpleChangeMapView({ center, zoom }: { center: [number, number]; zoom: number }) {
   useEffect(() => {
@@ -202,286 +181,37 @@ function LoadingSpinner() {
   )
 }
 
-// フィルタータグコンポーネント
-function FilterTag({ 
-  label, 
-  active, 
-  onClick 
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`quick-btn ${active ? 'active' : ''}`}
-    >
-      {label}
-    </button>
-  )
-}
-
-// 統合サイドバーコンポーネント
-// IntegratedSidebar コンポーネントを以下に置き換え
-function IntegratedSidebar({
-  filters,
-  sortState,
-  hasLocation,
-  isLocating,
-  filteredCount,
-  totalCount,
-  openCount,
-  favoriteCount,
-  onFiltersChange,
-  onSortChange,
-  onLocationClick,
-  onRefresh,
-  onFiltersClear
-}: {
-  filters: FilterState
-  sortState: SortState
-  hasLocation: boolean
-  isLocating: boolean
-  filteredCount: number
-  totalCount: number
-  openCount: number
-  favoriteCount: number
-  onFiltersChange: (filters: Partial<FilterState>) => void
-  onSortChange: (sort: SortState) => void
-  onLocationClick: () => void
-  onRefresh: () => void
-  onFiltersClear: () => void
-}) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-
-  return (
-    <div className={`search-filter-area ${isCollapsed ? 'collapsed' : ''}`}>
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="filter-toggle-btn"
-        title={isCollapsed ? 'フィルターを表示' : 'フィルターを隠す'}
-      >
-        {isCollapsed ? '🔍' : '✕'}
-      </button>
-
-      <div className="search-container">
-        {/* 検索バー */}
-        <div className="search-bar">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            className="search-input"
-            placeholder="店舗名・住所・こだわり・雰囲気で検索..."
-            value={filters.search}
-            onChange={(e) => onFiltersChange({ search: e.target.value })}
-          />
-        </div>
-
-        {/* フィルターセクション */}
-        <div className="filter-section">
-          <div className="filter-group">
-            <div className="filter-label">
-              <span>📂</span> カテゴリー
-            </div>
-            <select
-              className="filter-select"
-              value={filters.category}
-              onChange={(e) => onFiltersChange({ category: e.target.value as FilterState['category'] })}
-            >
-              <option value="all">すべてのカテゴリー</option>
-              {Object.entries(CATEGORIES).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <div className="filter-label">
-              <span>💰</span> 価格帯
-            </div>
-            <select
-              className="filter-select"
-              value={filters.priceRange}
-              onChange={(e) => onFiltersChange({ priceRange: e.target.value as FilterState['priceRange'] })}
-            >
-              <option value="all">すべての価格帯</option>
-              <option value="1">¥ (～500円)</option>
-              <option value="2">¥¥ (500～1000円)</option>
-              <option value="3">¥¥¥ (1000～2000円)</option>
-              <option value="4">¥¥¥¥ (2000円～)</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <div className="filter-label">
-              <span>📍</span> 距離
-            </div>
-            <select
-              className="filter-select"
-              value={filters.distance.enabled ? filters.distance.maxKm : 'all'}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value === 'all') {
-                  onFiltersChange({ distance: { enabled: false, maxKm: 5 } })
-                } else {
-                  onFiltersChange({ distance: { enabled: true, maxKm: parseInt(value) } })
-                }
-              }}
-            >
-              <option value="all">距離指定なし</option>
-              <option value="1">1km以内</option>
-              <option value="2">2km以内</option>
-              <option value="3">3km以内</option>
-              <option value="5">5km以内</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <div className="filter-label">
-              <span>📊</span> 並び順
-            </div>
-            <select
-              className="filter-select"
-              value={sortState.option}
-              onChange={(e) => onSortChange({ ...sortState, option: e.target.value as SortState['option'] })}
-            >
-              <option value="rating">⭐ 評価順</option>
-              <option value="distance" disabled={!hasLocation}>📍 距離順</option>
-              <option value="review_count">💬 レビュー数順</option>
-              <option value="newest">🆕 新着順</option>
-              <option value="price_low">💰 価格安順</option>
-              <option value="price_high">💎 価格高順</option>
-              <option value="name">🔤 名前順</option>
-              <option value="random">🎲 ランダム</option>
-            </select>
-          </div>
-        </div>
-
-        {/* クイックアクション */}
-        <div className="quick-actions">
-          <FilterTag
-            label="📍 現在地周辺"
-            active={filters.distance.enabled}
-            onClick={() => {
-              if (!filters.distance.enabled && onLocationClick) {
-                onLocationClick()
-              }
-              onFiltersChange({ 
-                distance: { 
-                  enabled: !filters.distance.enabled, 
-                  maxKm: filters.distance.enabled ? 5 : 1 
-                } 
-              })
-            }}
-          />
-          <FilterTag
-            label="📶 Wi-Fi完備"
-            active={filters.features.includes('wifi')}
-            onClick={() => {
-              const hasWifi = filters.features.includes('wifi')
-              onFiltersChange({ 
-                features: hasWifi 
-                  ? filters.features.filter(f => f !== 'wifi')
-                  : [...filters.features, 'wifi']
-              })
-            }}
-          />
-          <FilterTag
-            label="🔌 電源あり"
-            active={filters.features.includes('power')}
-            onClick={() => {
-              const hasPower = filters.features.includes('power')
-              onFiltersChange({ 
-                features: hasPower 
-                  ? filters.features.filter(f => f !== 'power')
-                  : [...filters.features, 'power']
-              })
-            }}
-          />
-          <FilterTag
-            label="🕐 営業中"
-            active={filters.isOpenNow}
-            onClick={() => onFiltersChange({ isOpenNow: !filters.isOpenNow })}
-          />
-          <FilterTag
-            label="⭐ 高評価"
-            active={filters.minRating >= 4}
-            onClick={() => onFiltersChange({ minRating: filters.minRating >= 4 ? 0 : 4 })}
-          />
-          <FilterTag
-            label="❤️ お気に入り"
-            active={filters.showFavoritesOnly}
-            onClick={() => onFiltersChange({ showFavoritesOnly: !filters.showFavoritesOnly })}
-          />
-          <button
-            onClick={onLocationClick}
-            disabled={isLocating}
-            className={`quick-btn ${isLocating ? 'disabled' : ''}`}
-          >
-            {isLocating ? '📍 取得中...' : '📍 現在地取得'}
-          </button>
-          <button
-            onClick={onRefresh}
-            className="quick-btn"
-          >
-            🔄 更新
-          </button>
-          <button
-            onClick={onFiltersClear}
-            className="quick-btn"
-          >
-            🗑️ リセット
-          </button>
-        </div>
-
-        {/* 統計ダッシュボード - デスクトップのみ表示 */}
-        <div className="stats-dashboard hidden md:grid">
-          <div className="stat-card">
-            <div className="stat-number">{filteredCount}</div>
-            <div className="stat-label">該当店舗</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{openCount}</div>
-            <div className="stat-label">営業中</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{totalCount > 0 ? (favoriteCount / totalCount * 100).toFixed(0) : 0}%</div>
-            <div className="stat-label">お気に入り率</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{favoriteCount}</div>
-            <div className="stat-label">お気に入り</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{totalCount}</div>
-            <div className="stat-label">総店舗</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 interface MapProps {
   refreshTrigger: number
+  filters: FilterState
+  sortState: SortState
+  currentLocation: [number, number] | null
+  onLocationUpdate: (location: [number, number] | null) => void
+  onShopCountUpdate: (count: number) => void
+  onOpenCountUpdate: (count: number) => void
+  onFavoriteCountUpdate: (count: number) => void
 }
 
-export default function Map({ refreshTrigger }: MapProps) {
+export default function Map({ 
+  refreshTrigger, 
+  filters, 
+  sortState,
+  currentLocation,
+  onLocationUpdate,
+  onShopCountUpdate,
+  onOpenCountUpdate,
+  onFavoriteCountUpdate
+}: MapProps) {
   const { user } = useUser()
   const { openAuthModal, AuthModal } = useAuthModal()
 
   // 状態管理
   const [shops, setShops] = useState<ShopWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null)
-  const [isLocating, setIsLocating] = useState(false)
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
   const [selectedShop, setSelectedShop] = useState<ShopWithDetails | null>(null)
   const [sidePanelOpen, setSidePanelOpen] = useState(false)
-  const [filters, setFilters] = useState<FilterState>(defaultFilters)
-  const [sortState, setSortState] = useState<SortState>(defaultSort)
   const [favorites, setFavorites] = useState<Set<number>>(new Set())
   const [icons, setIcons] = useState<any>(null)
 
@@ -700,59 +430,23 @@ export default function Map({ refreshTrigger }: MapProps) {
     return sorted
   }, [shops, filters, sortState, currentLocation, applyFilters])
 
-  // 統計計算
-  const statistics = useMemo(() => {
-    const filteredCount = processedShops.length
-    const totalCount = shops.length
+  // 統計計算とコールバック
+  useEffect(() => {
     const openCount = processedShops.filter(shop => isOpenNow(shop.hours)).length
     const favoriteCount = processedShops.filter(shop => favorites.has(shop.id)).length
+    
+    onShopCountUpdate(processedShops.length)
+    onOpenCountUpdate(openCount)
+    onFavoriteCountUpdate(favoriteCount)
+  }, [processedShops, isOpenNow, favorites, onShopCountUpdate, onOpenCountUpdate, onFavoriteCountUpdate])
 
-    return { filteredCount, totalCount, openCount, favoriteCount }
-  }, [processedShops, shops, isOpenNow, favorites])
-
-  // 現在地取得
-  const getCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      showToast('このブラウザでは位置情報がサポートされていません', 'error')
-      return
+  // 現在地が更新されたらマップ中心を更新
+  useEffect(() => {
+    if (currentLocation) {
+      setMapCenter(currentLocation)
+      setMapZoom(LOCATION_ZOOM)
     }
-
-    setIsLocating(true)
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords
-        const newLocation: [number, number] = [latitude, longitude]
-        
-        setCurrentLocation(newLocation)
-        setMapCenter(newLocation)
-        setMapZoom(LOCATION_ZOOM)
-        setIsLocating(false)
-        showToast('現在地を取得しました', 'success')
-      },
-      (err) => {
-        setIsLocating(false)
-        let errorMessage = '位置情報取得中にエラーが発生しました'
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            errorMessage = '位置情報の取得が拒否されました'
-            break
-          case err.POSITION_UNAVAILABLE:
-            errorMessage = '位置情報を取得できません'
-            break
-          case err.TIMEOUT:
-            errorMessage = '位置情報取得がタイムアウトしました'
-            break
-        }
-        showToast(errorMessage, 'error')
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: LOCATION_TIMEOUT,
-        maximumAge: LOCATION_MAX_AGE
-      }
-    )
-  }, [])
+  }, [currentLocation])
 
   // 店舗詳細表示
   const showShopDetails = useCallback((shop: ShopWithDetails) => {
@@ -764,17 +458,6 @@ export default function Map({ refreshTrigger }: MapProps) {
   const closeSidePanel = useCallback(() => {
     setSidePanelOpen(false)
     setTimeout(() => setSelectedShop(null), 300)
-  }, [])
-
-  // フィルターリセット
-  const handleFiltersClear = useCallback(() => {
-    setFilters(defaultFilters)
-    showToast('フィルターをリセットしました', 'info')
-  }, [])
-
-  // フィルター更新
-  const handleFiltersChange = useCallback((newFilters: Partial<FilterState>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }))
   }, [])
 
   // 初期読み込み
@@ -795,23 +478,6 @@ export default function Map({ refreshTrigger }: MapProps) {
 
   return (
     <div className="h-full w-full relative">
-      {/* 検索・フィルターエリア */}
-      <IntegratedSidebar
-        filters={filters}
-        sortState={sortState}
-        hasLocation={!!currentLocation}
-        isLocating={isLocating}
-        filteredCount={statistics.filteredCount}
-        totalCount={statistics.totalCount}
-        openCount={statistics.openCount}
-        favoriteCount={statistics.favoriteCount}
-        onFiltersChange={handleFiltersChange}
-        onSortChange={setSortState}
-        onLocationClick={getCurrentLocation}
-        onRefresh={fetchShops}
-        onFiltersClear={handleFiltersClear}
-      />
-
       {/* 地図 */}
       <MapContainer 
         center={mapCenter}
@@ -937,19 +603,13 @@ export default function Map({ refreshTrigger }: MapProps) {
       </MapContainer>
 
       {/* 店舗が見つからない場合 */}
-      {statistics.filteredCount === 0 && !loading && (
+      {processedShops.length === 0 && !loading && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[500]">
           <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-lg p-4 text-center border">
             <div className="text-2xl mb-2">☕</div>
             <div className="text-sm text-gray-700 mb-3">
               条件に一致する店舗が見つかりません
             </div>
-            <button
-              onClick={handleFiltersClear}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 text-sm font-medium"
-            >
-              フィルターをリセット
-            </button>
           </div>
         </div>
       )}
